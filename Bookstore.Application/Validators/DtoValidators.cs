@@ -67,8 +67,38 @@ public class UserRegisterDtoValidator
         if (string.IsNullOrWhiteSpace(dto.Email) || !IsValidEmail(dto.Email) || dto.Email.Length > 256)
             errors.Add("Email is required, must be valid, and must not exceed 256 characters.");
 
-        if (string.IsNullOrWhiteSpace(dto.Password) || dto.Password.Length < 6)
-            errors.Add("Password is required and must be at least 6 characters.");
+        // Stronger password policy:
+        // - Minimum length 12
+        // - At least one uppercase letter
+        // - At least one lowercase letter
+        // - At least one digit
+        // - At least one special character
+        if (string.IsNullOrWhiteSpace(dto.Password))
+        {
+            errors.Add("Password is required.");
+        }
+        else
+        {
+            if (dto.Password.Length < 12)
+                errors.Add("Password must be at least 12 characters long.");
+
+            if (!dto.Password.Any(char.IsUpper))
+                errors.Add("Password must contain at least one uppercase letter.");
+
+            if (!dto.Password.Any(char.IsLower))
+                errors.Add("Password must contain at least one lowercase letter.");
+
+            if (!dto.Password.Any(char.IsDigit))
+                errors.Add("Password must contain at least one digit.");
+
+            if (!dto.Password.Any(ch => !char.IsLetterOrDigit(ch)))
+                errors.Add("Password must contain at least one special character.");
+
+            // Simple blacklist check (case-insensitive)
+            var blacklist = new[] { "password", "123456", "12345678", "qwerty", "letmein" };
+            if (blacklist.Any(b => dto.Password.IndexOf(b, StringComparison.OrdinalIgnoreCase) >= 0))
+                errors.Add("Password is too common or easily guessable.");
+        }
 
         if (dto.PhoneNumber != null && dto.PhoneNumber.Length > 20)
             errors.Add("Phone Number must not exceed 20 characters.");

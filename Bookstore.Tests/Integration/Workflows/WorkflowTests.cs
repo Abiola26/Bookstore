@@ -48,7 +48,7 @@ public class BookInventoryWorkflowTests
         // Assert 1 - Book should be retrievable
         var retrievedBook = await bookRepository.GetByIdAsync(book.Id);
         retrievedBook.Should().NotBeNull();
-        retrievedBook.TotalQuantity.Should().Be(100);
+        retrievedBook!.TotalQuantity.Should().Be(100);
 
         // Act 2 - Create an order
         var user = new UserBuilder().Build();
@@ -59,6 +59,7 @@ public class BookInventoryWorkflowTests
         await orderRepository.AddAsync(order);
 
         var orderItem = new OrderItemBuilder()
+            .WithOrderId(order.Id)
             .WithBook(book)
             .WithQuantity(5)
             .WithUnitPrice(book.Price)
@@ -68,9 +69,9 @@ public class BookInventoryWorkflowTests
         await _fixture.Context.SaveChangesAsync();
 
         // Assert 2 - Order should be retrievable with items
-        var retrievedOrder = await orderRepository.GetByIdAsync(order.Id);
+        var retrievedOrder = await orderRepository.GetWithItemsAsync(order.Id);
         retrievedOrder.Should().NotBeNull();
-        retrievedOrder.OrderItems.Should().HaveCount(1);
+        retrievedOrder!.OrderItems.Should().HaveCount(1);
 
         // Act 3 - Update book stock
         book.TotalQuantity -= orderItem.Quantity;
@@ -79,7 +80,8 @@ public class BookInventoryWorkflowTests
 
         // Assert 3 - Stock should be updated
         var updatedBook = await bookRepository.GetByIdAsync(book.Id);
-        updatedBook.TotalQuantity.Should().Be(95);
+        updatedBook.Should().NotBeNull();
+        updatedBook!.TotalQuantity.Should().Be(95);
     }
 
     [Fact]
@@ -176,7 +178,7 @@ public class UserAuthenticationWorkflowTests
 
         // Assert
         retrievedUser.Should().NotBeNull();
-        retrievedUser.Email.Should().Be("newuser@example.com");
+        retrievedUser!.Email.Should().Be("newuser@example.com");
         retrievedUser.FullName.Should().Be("New User");
 
         // Verify password
@@ -208,7 +210,7 @@ public class UserAuthenticationWorkflowTests
         {
             var retrieved = await userRepository.GetByIdAsync(user.Id);
             retrieved.Should().NotBeNull();
-            retrieved.Email.Should().Be(user.Email);
+            retrieved!.Email.Should().Be(user.Email);
         }
     }
 }
@@ -259,6 +261,7 @@ public class OrderProcessingWorkflowTests
         await orderRepository.AddAsync(order);
 
         var orderItem = new OrderItemBuilder()
+            .WithOrderId(order.Id)
             .WithBook(book)
             .WithQuantity(10)
             .WithUnitPrice(book.Price)
@@ -269,16 +272,19 @@ public class OrderProcessingWorkflowTests
 
         // Act - Update inventory
         var updatedBook = await bookRepository.GetByIdAsync(book.Id);
-        updatedBook.TotalQuantity -= 10;
+        updatedBook.Should().NotBeNull();
+        updatedBook!.TotalQuantity -= 10;
         bookRepository.Update(updatedBook);
         await _fixture.Context.SaveChangesAsync();
 
         // Assert - Verify changes
         var finalBook = await bookRepository.GetByIdAsync(book.Id);
-        finalBook.TotalQuantity.Should().Be(initialQuantity - 10);
+        finalBook.Should().NotBeNull();
+        finalBook!.TotalQuantity.Should().Be(initialQuantity - 10);
 
-        var retrievedOrder = await orderRepository.GetByIdAsync(order.Id);
-        retrievedOrder.OrderItems.Should().HaveCount(1);
+        var retrievedOrder = await orderRepository.GetWithItemsAsync(order.Id);
+        retrievedOrder.Should().NotBeNull();
+        retrievedOrder!.OrderItems.Should().HaveCount(1);
         retrievedOrder.OrderItems.First().Quantity.Should().Be(10);
     }
 }

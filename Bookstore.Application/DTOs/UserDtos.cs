@@ -33,3 +33,27 @@ public class AuthResponseDto
     public string Token { get; set; } = string.Empty;
     public DateTime ExpiresAt { get; set; }
 }
+
+public class ResendConfirmationDto
+{
+    public string Email { get; set; } = string.Empty;
+}
+
+public class PasswordResetRequestDto
+{
+    public string Email { get; set; } = string.Empty;
+}
+
+public class PasswordResetDto
+{
+    public Guid UserId { get; set; }
+    public string Token { get; set; } = string.Empty;
+    public string NewPassword { get; set; } = string.Empty;
+}
+
+public class ChangePasswordDto
+{
+    public Guid UserId { get; set; }
+    public string CurrentPassword { get; set; } = string.Empty;
+    public string NewPassword { get; set; } = string.Empty;
+}

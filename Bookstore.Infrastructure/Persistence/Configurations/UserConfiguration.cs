@@ -27,6 +27,19 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.PhoneNumber)
             .HasMaxLength(20);
 
+        builder.Property(u => u.EmailConfirmed)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(u => u.EmailConfirmationToken)
+            .HasMaxLength(500);
+        builder.Property(u => u.EmailConfirmationTokenExpiresAt);
+
+        builder.Property(u => u.PasswordResetToken)
+            .HasMaxLength(500);
+
+        builder.Property(u => u.PasswordResetTokenExpiresAt);
+
         builder.Property(u => u.PasswordHash)
             .IsRequired()
             .HasMaxLength(500);

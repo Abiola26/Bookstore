@@ -29,6 +29,12 @@ public static class DependencyInjection
         services.AddScoped<IOrderItemRepository, OrderItemRepository>();
 
         // Services
+        // Password hasher
+        services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
+        // Email sender (SMTP with fallback to logging)
+        services.AddScoped<IEmailSender, SmtpEmailSender>();
+        // Rate limit service (uses IDistributedCache)
+        services.AddScoped<Bookstore.Application.Services.IRateLimitService, Bookstore.Infrastructure.Services.DistributedRateLimitService>();
         services.AddScoped<IBookService, BookService>();
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();

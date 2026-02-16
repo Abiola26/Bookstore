@@ -15,7 +15,10 @@ public class OrderItem : BaseEntity
 
     public Money UnitPrice { get; private set; }
 
-    private OrderItem() { }
+    private OrderItem()
+    {
+        UnitPrice = null!;
+    }
 
     public OrderItem(Guid orderId, Guid bookId, int quantity, Money unitPrice)
     {

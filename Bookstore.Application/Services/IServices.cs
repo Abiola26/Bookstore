@@ -29,9 +29,12 @@ public interface IAuthenticationService
     Task<ApiResponse<AuthResponseDto>> RegisterAsync(UserRegisterDto dto, CancellationToken cancellationToken = default);
     Task<ApiResponse<AuthResponseDto>> LoginAsync(UserLoginDto dto, CancellationToken cancellationToken = default);
     Task<ApiResponse<UserResponseDto>> GetCurrentUserAsync(Guid userId, CancellationToken cancellationToken = default);
-    Task<bool> VerifyPasswordAsync(string password, string hash);
-    string HashPassword(string password);
     string GenerateJwtToken(Guid userId, string email, string fullName, string role);
+    Task<ApiResponse> ConfirmEmailAsync(Guid userId, string token, CancellationToken cancellationToken = default);
+    Task<ApiResponse> ResendConfirmationAsync(string email, CancellationToken cancellationToken = default);
+    Task<ApiResponse> RequestPasswordResetAsync(string email, CancellationToken cancellationToken = default);
+    Task<ApiResponse> ResetPasswordAsync(Guid userId, string token, string newPassword, CancellationToken cancellationToken = default);
+    Task<ApiResponse> ChangePasswordAsync(Guid userId, string currentPassword, string newPassword, CancellationToken cancellationToken = default);
 }
 
 public interface IOrderService

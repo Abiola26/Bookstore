@@ -22,6 +22,15 @@ public sealed class ISBN : IEquatable<ISBN>
     public bool Equals(ISBN? other) => other is not null && string.Equals(Value, other.Value, StringComparison.OrdinalIgnoreCase);
     public override int GetHashCode() => Value.ToUpperInvariant().GetHashCode();
 
+    public static bool operator ==(ISBN? left, ISBN? right)
+    {
+        if (ReferenceEquals(left, right)) return true;
+        if (left is null || right is null) return false;
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(ISBN? left, ISBN? right) => !(left == right);
+
     public override string ToString() => Value;
 
     public static implicit operator string?(ISBN? isbn) => isbn?.Value;

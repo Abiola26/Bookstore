@@ -144,7 +144,7 @@ public class OrderService : IOrderService
                     "Order created successfully",
                     201);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 await _unitOfWork.RollbackAsync(cancellationToken);
                 throw;
@@ -231,7 +231,7 @@ public class OrderService : IOrderService
                 await _unitOfWork.CommitAsync(cancellationToken);
                 return ApiResponse.SuccessResponse("Order cancelled successfully");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 await _unitOfWork.RollbackAsync(cancellationToken);
                 throw;

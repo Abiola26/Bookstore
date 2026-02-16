@@ -43,7 +43,7 @@ public class BookRepositoryTests
 
         // Assert
         result.Should().NotBeNull();
-        result.Title.Should().Be("Test Book");
+        result!.Title.Should().Be("Test Book");
         result.Id.Should().Be(book.Id);
     }
 
@@ -102,7 +102,7 @@ public class BookRepositoryTests
         // Assert
         var result = await _repository.GetByIdAsync(book.Id);
         result.Should().NotBeNull();
-        result.Title.Should().Be("New Book");
+        result!.Title.Should().Be("New Book");
     }
 
     [Fact]
@@ -124,7 +124,7 @@ public class BookRepositoryTests
 
         // Assert
         var result = await _repository.GetByIdAsync(book.Id);
-        result.Title.Should().Be("Updated Title");
+        result!.Title.Should().Be("Updated Title");
     }
 
     [Fact]
@@ -178,7 +178,7 @@ public class CategoryRepositoryTests
 
         // Assert
         result.Should().NotBeNull();
-        result.Name.Should().Be("Science Fiction");
+        result!.Name.Should().Be("Science Fiction");
     }
 
     [Fact]
@@ -194,7 +194,7 @@ public class CategoryRepositoryTests
         // Assert
         var result = await _repository.GetByIdAsync(category.Id);
         result.Should().NotBeNull();
-        result.Name.Should().Be("Fantasy");
+        result!.Name.Should().Be("Fantasy");
     }
 }
 
@@ -230,7 +230,7 @@ public class UserRepositoryTests
 
         // Assert
         result.Should().NotBeNull();
-        result.Email.Should().Be("test@example.com");
+        result!.Email.Should().Be("test@example.com");
     }
 
     [Fact]
@@ -283,7 +283,7 @@ public class OrderRepositoryTests
 
         // Assert
         result.Should().NotBeNull();
-        result.UserId.Should().Be(user.Id);
+        result!.UserId.Should().Be(user.Id);
     }
 
     [Fact]
@@ -303,6 +303,6 @@ public class OrderRepositoryTests
         // Assert
         var result = await _repository.GetByIdAsync(order.Id);
         result.Should().NotBeNull();
-        result.Status.Should().Be(Bookstore.Domain.Entities.OrderStatus.Pending);
+        result!.Status.Should().Be(Bookstore.Domain.Entities.OrderStatus.Pending);
     }
 }

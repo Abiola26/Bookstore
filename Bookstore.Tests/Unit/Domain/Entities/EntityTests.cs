@@ -230,7 +230,7 @@ public class UserEntityTests
     [Theory]
     [InlineData("")]
     [InlineData(null)]
-    public void CreateUser_WithInvalidEmail_ShouldThrow(string email)
+    public void CreateUser_WithInvalidEmail_ShouldThrow(string? email)
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentException>(() =>
@@ -289,7 +289,7 @@ public class MoneyValueObjectTests
     public void Money_WithNegativeAmount_ShouldThrow()
     {
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() =>
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() =>
             new Money(-50m, "USD"));
     }
 }

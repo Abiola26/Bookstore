@@ -7,6 +7,9 @@ using FluentAssertions;
 using Moq;
 using Xunit;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
+using Bookstore.Application.Settings;
+using Bookstore.Application.Services;
 
 namespace Bookstore.Tests.Unit.Infrastructure.Services;
 
@@ -42,7 +45,7 @@ public class BookServiceTests
 
         _bookRepositoryMock
             .Setup(r => r.GetByIdAsync(bookId, cancellationToken))
-            .Returns(Task.FromResult(book));
+            .Returns(Task.FromResult<Bookstore.Domain.Entities.Book?>(book));
 
         // Act
         var result = await _service.GetBookByIdAsync(bookId, cancellationToken);
@@ -51,7 +54,7 @@ public class BookServiceTests
         result.Should().NotBeNull();
         result.Success.Should().BeTrue();
         result.Data.Should().NotBeNull();
-        result.Data.Title.Should().Be(book.Title);
+        result.Data!.Title.Should().Be(book.Title);
         _bookRepositoryMock.Verify(r => r.GetByIdAsync(bookId, cancellationToken), Times.Once);
     }
 
@@ -64,7 +67,7 @@ public class BookServiceTests
 
         _bookRepositoryMock
             .Setup(r => r.GetByIdAsync(invalidId, cancellationToken))
-            .Returns(Task.FromResult<Bookstore.Domain.Entities.Book>(null!));
+            .Returns(Task.FromResult<Bookstore.Domain.Entities.Book?>(null));
 
         // Act
         var result = await _service.GetBookByIdAsync(invalidId, cancellationToken);
@@ -129,9 +132,9 @@ public class BookServiceTests
         // Assert
         result.Should().NotBeNull();
         result.Success.Should().BeTrue();
-        result.Data.PageNumber.Should().Be(pageNumber);
-        result.Data.PageSize.Should().Be(pageSize);
-        result.Data.TotalCount.Should().Be(totalCount);
+        result.Data!.PageNumber.Should().Be(pageNumber);
+        result.Data!.PageSize.Should().Be(pageSize);
+        result.Data!.TotalCount.Should().Be(totalCount);
     }
 
     [Fact]
@@ -153,7 +156,7 @@ public class BookServiceTests
         result.Should().NotBeNull();
         result.Success.Should().BeTrue();
         result.Data.Should().HaveCount(1);
-        result.Data.First().Title.Should().Be(searchTitle);
+        result.Data!.First().Title.Should().Be(searchTitle);
     }
 
     [Fact]
@@ -209,7 +212,7 @@ public class CategoryServiceTests
 
         _categoryRepositoryMock
             .Setup(r => r.GetByIdAsync(categoryId, cancellationToken))
-            .Returns(Task.FromResult(category));
+            .Returns(Task.FromResult<Bookstore.Domain.Entities.Category?>(category));
         _bookRepositoryMock
             .Setup(r => r.GetCategoryBookCountAsync(categoryId, cancellationToken))
             .Returns(Task.FromResult(5));
@@ -221,7 +224,7 @@ public class CategoryServiceTests
         result.Should().NotBeNull();
         result.Success.Should().BeTrue();
         result.Data.Should().NotBeNull();
-        result.Data.Name.Should().Be("Science Fiction");
+        result.Data!.Name.Should().Be("Science Fiction");
     }
 
     [Fact]
@@ -233,7 +236,7 @@ public class CategoryServiceTests
 
         _categoryRepositoryMock
             .Setup(r => r.GetByIdAsync(invalidId, cancellationToken))
-            .Returns(Task.FromResult<Bookstore.Domain.Entities.Category>(null!));
+            .Returns(Task.FromResult<Bookstore.Domain.Entities.Category?>(null));
 
         // Act
         var result = await _service.GetCategoryByIdAsync(invalidId, cancellationToken);
@@ -279,6 +282,8 @@ public class AuthenticationServiceTests
 {
     private readonly Mock<IUserRepository> _userRepositoryMock;
     private readonly Mock<IUnitOfWork> _unitOfWorkMock;
+    private readonly Mock<IPasswordHasher> _passwordHasherMock;
+    private readonly Mock<IEmailSender> _emailSenderMock;
     private readonly AuthenticationService _service;
 
     public AuthenticationServiceTests()
@@ -288,22 +293,40 @@ public class AuthenticationServiceTests
 
         _unitOfWorkMock.Setup(u => u.Users).Returns(_userRepositoryMock.Object);
 
-        _service = new AuthenticationService(_unitOfWorkMock.Object, GetMockConfiguration());
+        _passwordHasherMock = new Mock<IPasswordHasher>();
+        _passwordHasherMock
+            .Setup(p => p.HashPassword(It.IsAny<string>()))
+            .Returns<string>(pw => BCrypt.Net.BCrypt.HashPassword(pw));
+        _passwordHasherMock
+            .Setup(p => p.VerifyAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .Returns<string, string>((pw, hash) => Task.FromResult(BCrypt.Net.BCrypt.Verify(pw, hash)));
+
+        _emailSenderMock = new Mock<IEmailSender>();
+        _emailSenderMock.Setup(e => e.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var jwtSettings = new JwtSettings
+        {
+            Key = "your-very-secret-key-that-is-at-least-32-characters-long-for-hs256-algorithm",
+            Issuer = "BookstoreAPI",
+            Audience = "BookstoreClients",
+            ExpirationMinutes = 1440
+        };
+
+        var emailSettings = new EmailSettings
+        {
+            ConfirmationTokenExpiryHours = 24,
+            PasswordResetTokenExpiryHours = 2,
+            ConfirmationUrlOrigin = string.Empty
+        };
+
+        var jwtOptions = Options.Create(jwtSettings);
+        var emailOptions = Options.Create(emailSettings);
+
+        _service = new AuthenticationService(_unitOfWorkMock.Object, jwtOptions, emailOptions, _passwordHasherMock.Object, _emailSenderMock.Object);
     }
 
-    private static IConfiguration GetMockConfiguration()
-    {
-        var configMock = new Mock<IConfiguration>();
-        configMock.Setup(x => x["JWT:Key"])
-            .Returns("your-very-secret-key-that-is-at-least-32-characters-long-for-hs256-algorithm");
-        configMock.Setup(x => x["JWT:Issuer"])
-            .Returns("BookstoreAPI");
-        configMock.Setup(x => x["JWT:Audience"])
-            .Returns("BookstoreClients");
-        configMock.Setup(x => x["JWT:ExpirationMinutes"])
-            .Returns("1440");
-        return configMock.Object;
-    }
+    // Configuration is provided via IOptions in tests
 
     [Fact]
     public async Task RegisterAsync_WithValidData_ShouldSucceed()
@@ -335,7 +358,7 @@ public class AuthenticationServiceTests
         result.Should().NotBeNull();
         result.Success.Should().BeTrue();
         result.Data.Should().NotBeNull();
-        result.Data.Email.Should().Be(dto.Email);
+        result.Data!.Email.Should().Be(dto.Email);
         result.StatusCode.Should().Be(201);
     }
 
@@ -385,7 +408,7 @@ public class AuthenticationServiceTests
 
         _userRepositoryMock
             .Setup(r => r.GetByEmailAsync(dto.Email, cancellationToken))
-            .Returns(Task.FromResult(user));
+            .Returns(Task.FromResult<Bookstore.Domain.Entities.User?>(user));
 
         // Act
         var result = await _service.LoginAsync(dto, cancellationToken);
@@ -394,8 +417,8 @@ public class AuthenticationServiceTests
         result.Should().NotBeNull();
         result.Success.Should().BeTrue();
         result.Data.Should().NotBeNull();
-        result.Data.Token.Should().NotBeNullOrEmpty();
-        result.Data.Email.Should().Be(dto.Email);
+        result.Data!.Token.Should().NotBeNullOrEmpty();
+        result.Data!.Email.Should().Be(dto.Email);
     }
 
     [Fact]
@@ -416,7 +439,7 @@ public class AuthenticationServiceTests
 
         _userRepositoryMock
             .Setup(r => r.GetByEmailAsync(dto.Email, cancellationToken))
-            .Returns(Task.FromResult(user));
+            .Returns(Task.FromResult<Bookstore.Domain.Entities.User?>(user));
 
         // Act
         var result = await _service.LoginAsync(dto, cancellationToken);
@@ -441,7 +464,7 @@ public class AuthenticationServiceTests
 
         _userRepositoryMock
             .Setup(r => r.GetByEmailAsync(dto.Email, cancellationToken))
-            .Returns(Task.FromResult<Bookstore.Domain.Entities.User>(null!));
+            .Returns(Task.FromResult<Bookstore.Domain.Entities.User?>(null));
 
         // Act
         var result = await _service.LoginAsync(dto, cancellationToken);
@@ -450,5 +473,182 @@ public class AuthenticationServiceTests
         result.Should().NotBeNull();
         result.Success.Should().BeFalse();
         result.StatusCode.Should().Be(401);
+    }
+
+    [Fact]
+    public async Task ResendConfirmationAsync_WithNonexistentEmail_ShouldReturnNotFound()
+    {
+        // Arrange
+        var email = "notfound@example.com";
+        var cancellationToken = CancellationToken.None;
+
+        _userRepositoryMock
+            .Setup(r => r.GetByEmailAsync(email, cancellationToken))
+            .Returns(Task.FromResult<Bookstore.Domain.Entities.User?>(null));
+
+        // Act
+        var result = await _service.ResendConfirmationAsync(email, cancellationToken);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+        result.StatusCode.Should().Be(404);
+    }
+
+    [Fact]
+    public async Task ResendConfirmationAsync_WhenAlreadyConfirmed_ShouldReturnSuccess()
+    {
+        // Arrange
+        var email = "confirmed@example.com";
+        var user = new UserBuilder().WithEmail(email).Build();
+        user.EmailConfirmed = true;
+
+        _userRepositoryMock
+            .Setup(r => r.GetByEmailAsync(email, It.IsAny<CancellationToken>()))
+            .Returns(Task.FromResult<Bookstore.Domain.Entities.User?>(user));
+
+        // Act
+        var result = await _service.ResendConfirmationAsync(email);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Success.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ResendConfirmationAsync_WithValidEmail_ShouldResendAndReturnSuccess()
+    {
+        // Arrange
+        var email = "user@example.com";
+        var user = new UserBuilder().WithEmail(email).Build();
+        user.EmailConfirmed = false;
+
+        _userRepositoryMock
+            .Setup(r => r.GetByEmailAsync(email, It.IsAny<CancellationToken>()))
+            .Returns(Task.FromResult<Bookstore.Domain.Entities.User?>(user));
+
+        _userRepositoryMock
+            .Setup(r => r.Update(It.IsAny<Bookstore.Domain.Entities.User>()));
+
+        _unitOfWorkMock
+            .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .Returns(Task.FromResult(1));
+
+        // Act
+        var result = await _service.ResendConfirmationAsync(email);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Success.Should().BeTrue();
+        _emailSenderMock.Verify(e => e.SendEmailAsync(email, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RequestPasswordResetAsync_WithNonexistentEmail_ShouldReturnSuccess()
+    {
+        // Arrange
+        var email = "noexist@example.com";
+        _userRepositoryMock
+            .Setup(r => r.GetByEmailAsync(email, It.IsAny<CancellationToken>()))
+            .Returns(Task.FromResult<Bookstore.Domain.Entities.User?>(null));
+
+        // Act
+        var result = await _service.RequestPasswordResetAsync(email);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Success.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ResetPasswordAsync_WithInvalidToken_ShouldReturnError()
+    {
+        // Arrange
+        var user = new UserBuilder().Build();
+        user.PasswordResetToken = "token";
+        user.PasswordResetTokenExpiresAt = DateTimeOffset.UtcNow.AddHours(-1);
+
+        _userRepositoryMock
+            .Setup(r => r.GetByIdAsync(user.Id, It.IsAny<CancellationToken>()))
+            .Returns(Task.FromResult<Bookstore.Domain.Entities.User?>(user));
+
+        // Act
+        var result = await _service.ResetPasswordAsync(user.Id, "wrong", "NewPassw0rd!@#");
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ResetPasswordAsync_WithValidToken_ShouldResetPassword()
+    {
+        // Arrange
+        var user = new UserBuilder().Build();
+        user.PasswordResetToken = "token";
+        user.PasswordResetTokenExpiresAt = DateTimeOffset.UtcNow.AddHours(1);
+
+        _userRepositoryMock
+            .Setup(r => r.GetByIdAsync(user.Id, It.IsAny<CancellationToken>()))
+            .Returns(Task.FromResult<Bookstore.Domain.Entities.User?>(user));
+
+        _userRepositoryMock
+            .Setup(r => r.Update(It.IsAny<Bookstore.Domain.Entities.User>()));
+
+        _unitOfWorkMock
+            .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .Returns(Task.FromResult(1));
+
+        // Act
+        var result = await _service.ResetPasswordAsync(user.Id, "token", "Str0ngN3wP@ss!");
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Success.Should().BeTrue();
+        _userRepositoryMock.Verify(r => r.Update(It.IsAny<Bookstore.Domain.Entities.User>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ChangePasswordAsync_WithWrongCurrentPassword_ShouldReturnError()
+    {
+        // Arrange
+        var user = new UserBuilder().Build();
+        _userRepositoryMock
+            .Setup(r => r.GetByIdAsync(user.Id, It.IsAny<CancellationToken>()))
+            .Returns(Task.FromResult<Bookstore.Domain.Entities.User?>(user));
+
+        // Act
+        var result = await _service.ChangePasswordAsync(user.Id, "WrongCurrent", "NewStr0ngP@ss!");
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ChangePasswordAsync_WithValidCurrentPassword_ShouldChangePassword()
+    {
+        // Arrange
+        var current = "CurrentP@ss123!";
+        var user = new UserBuilder().WithPasswordHash(BCrypt.Net.BCrypt.HashPassword(current)).Build();
+
+        _userRepositoryMock
+            .Setup(r => r.GetByIdAsync(user.Id, It.IsAny<CancellationToken>()))
+            .Returns(Task.FromResult<Bookstore.Domain.Entities.User?>(user));
+
+        _userRepositoryMock
+            .Setup(r => r.Update(It.IsAny<Bookstore.Domain.Entities.User>()));
+
+        _unitOfWorkMock
+            .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .Returns(Task.FromResult(1));
+
+        // Act
+        var result = await _service.ChangePasswordAsync(user.Id, current, "NewStr0ngP@ss!");
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Success.Should().BeTrue();
+        _userRepositoryMock.Verify(r => r.Update(It.IsAny<Bookstore.Domain.Entities.User>()), Times.Once);
     }
 }

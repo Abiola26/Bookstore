@@ -14,6 +14,7 @@ public class Category : BaseEntity
 
     public Category(string name)
     {
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Name is required", nameof(name));
         Name = name;
     }
 }
