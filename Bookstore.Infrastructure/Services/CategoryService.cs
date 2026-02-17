@@ -3,6 +3,7 @@ using Bookstore.Application.Common;
 using Bookstore.Application.Services;
 using Bookstore.Application.Repositories;
 using Bookstore.Application.Validators;
+using Microsoft.Extensions.Logging;
 using Bookstore.Domain.Entities;
 
 namespace Bookstore.Infrastructure.Services;
@@ -10,11 +11,13 @@ namespace Bookstore.Infrastructure.Services;
 public class CategoryService : ICategoryService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<CategoryService> _logger;
     private readonly CategoryCreateDtoValidator _createValidator;
 
-    public CategoryService(IUnitOfWork unitOfWork)
+    public CategoryService(IUnitOfWork unitOfWork, ILogger<CategoryService> logger)
     {
         _unitOfWork = unitOfWork;
+        _logger = logger;
         _createValidator = new CategoryCreateDtoValidator();
     }
 
@@ -31,7 +34,8 @@ public class CategoryService : ICategoryService
         }
         catch (Exception ex)
         {
-            return ApiResponse<CategoryResponseDto>.ErrorResponse($"Failed to retrieve category: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error retrieving category {CategoryId}", id);
+            return ApiResponse<CategoryResponseDto>.ErrorResponse("An error occurred while retrieving the category", null, 500);
         }
     }
 
@@ -52,7 +56,8 @@ public class CategoryService : ICategoryService
         }
         catch (Exception ex)
         {
-            return ApiResponse<ICollection<CategoryResponseDto>>.ErrorResponse($"Failed to retrieve categories: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error retrieving all categories");
+            return ApiResponse<ICollection<CategoryResponseDto>>.ErrorResponse("An error occurred while retrieving categories", null, 500);
         }
     }
 
@@ -77,7 +82,8 @@ public class CategoryService : ICategoryService
         }
         catch (Exception ex)
         {
-            return ApiResponse<CategoryResponseDto>.ErrorResponse($"Failed to create category: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error creating category: {CategoryName}", dto.Name);
+            return ApiResponse<CategoryResponseDto>.ErrorResponse("An error occurred while creating the category", null, 500);
         }
     }
 
@@ -107,7 +113,8 @@ public class CategoryService : ICategoryService
         }
         catch (Exception ex)
         {
-            return ApiResponse<CategoryResponseDto>.ErrorResponse($"Failed to update category: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error updating category {CategoryId}", id);
+            return ApiResponse<CategoryResponseDto>.ErrorResponse("An error occurred while updating the category", null, 500);
         }
     }
 
@@ -130,7 +137,8 @@ public class CategoryService : ICategoryService
         }
         catch (Exception ex)
         {
-            return ApiResponse.ErrorResponse($"Failed to delete category: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error deleting category {CategoryId}", id);
+            return ApiResponse.ErrorResponse("An error occurred while deleting the category", null, 500);
         }
     }
 

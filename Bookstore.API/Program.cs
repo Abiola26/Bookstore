@@ -229,9 +229,17 @@ using (var scope = app.Services.CreateScope())
     {
         if (app.Environment.IsDevelopment())
         {
-            // Development: Apply pending migrations
-            dbContext.Database.Migrate();
-            logger.LogInformation("Database migrations applied successfully");
+            // Development: Apply pending migrations (skip for InMemory)
+            if (dbContext.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory")
+            {
+                dbContext.Database.Migrate();
+                logger.LogInformation("Database migrations applied successfully");
+            }
+            else
+            {
+                dbContext.Database.EnsureCreated();
+                logger.LogInformation("InMemory database created");
+            }
         }
         else
         {

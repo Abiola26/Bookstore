@@ -4,6 +4,7 @@ using Bookstore.Application.Services;
 using Bookstore.Application.Exceptions;
 using Bookstore.Application.Repositories;
 using Bookstore.Application.Validators;
+using Microsoft.Extensions.Logging;
 using Bookstore.Domain.Entities;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -17,6 +18,7 @@ namespace Bookstore.Infrastructure.Services;
 public class AuthenticationService : IAuthenticationService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<AuthenticationService> _logger;
     private readonly Microsoft.Extensions.Options.IOptions<Bookstore.Application.Settings.JwtSettings> _jwtOptions;
     private readonly Microsoft.Extensions.Options.IOptions<Bookstore.Application.Settings.EmailSettings> _emailOptions;
     private readonly IPasswordHasher _passwordHasher;
@@ -25,12 +27,14 @@ public class AuthenticationService : IAuthenticationService
     private readonly UserLoginDtoValidator _loginValidator;
 
     public AuthenticationService(IUnitOfWork unitOfWork,
+        ILogger<AuthenticationService> logger,
         Microsoft.Extensions.Options.IOptions<Bookstore.Application.Settings.JwtSettings> jwtOptions,
         Microsoft.Extensions.Options.IOptions<Bookstore.Application.Settings.EmailSettings> emailOptions,
         IPasswordHasher passwordHasher,
         IEmailSender emailSender)
     {
         _unitOfWork = unitOfWork;
+        _logger = logger;
         _jwtOptions = jwtOptions;
         _emailOptions = emailOptions;
         _passwordHasher = passwordHasher;
@@ -66,7 +70,8 @@ public class AuthenticationService : IAuthenticationService
         }
         catch (Exception ex)
         {
-            return ApiResponse.ErrorResponse($"Password reset request failed: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error requesting password reset for user");
+            return ApiResponse.ErrorResponse("An error occurred while requesting password reset", null, 500);
         }
     }
 
@@ -100,7 +105,8 @@ public class AuthenticationService : IAuthenticationService
         }
         catch (Exception ex)
         {
-            return ApiResponse.ErrorResponse($"Password reset failed: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error resetting password for user {UserId}", userId);
+            return ApiResponse.ErrorResponse("An error occurred while resetting password", null, 500);
         }
     }
 
@@ -127,7 +133,8 @@ public class AuthenticationService : IAuthenticationService
         }
         catch (Exception ex)
         {
-            return ApiResponse.ErrorResponse($"Change password failed: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error changing password for user {UserId}", userId);
+            return ApiResponse.ErrorResponse("An error occurred while changing password", null, 500);
         }
     }
 
@@ -180,7 +187,8 @@ public class AuthenticationService : IAuthenticationService
         }
         catch (Exception ex)
         {
-            return ApiResponse<AuthResponseDto>.ErrorResponse($"Registration failed: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error during user registration");
+            return ApiResponse<AuthResponseDto>.ErrorResponse("An error occurred during registration", null, 500);
         }
     }
 
@@ -214,7 +222,8 @@ public class AuthenticationService : IAuthenticationService
         }
         catch (Exception ex)
         {
-            return ApiResponse.ErrorResponse($"Resend confirmation failed: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error resending confirmation email");
+            return ApiResponse.ErrorResponse("An error occurred while resending confirmation email", null, 500);
         }
     }
 
@@ -249,7 +258,8 @@ public class AuthenticationService : IAuthenticationService
         }
         catch (Exception ex)
         {
-            return ApiResponse.ErrorResponse($"Email confirmation failed: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error confirming email for user {UserId}", userId);
+            return ApiResponse.ErrorResponse("An error occurred while confirming email", null, 500);
         }
     }
 
@@ -287,7 +297,8 @@ public class AuthenticationService : IAuthenticationService
         }
         catch (Exception ex)
         {
-            return ApiResponse<AuthResponseDto>.ErrorResponse($"Login failed: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error during user login");
+            return ApiResponse<AuthResponseDto>.ErrorResponse("An error occurred during login", null, 500);
         }
     }
 
@@ -313,7 +324,8 @@ public class AuthenticationService : IAuthenticationService
         }
         catch (Exception ex)
         {
-            return ApiResponse<UserResponseDto>.ErrorResponse($"Failed to retrieve user: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error retrieving current user {UserId}", userId);
+            return ApiResponse<UserResponseDto>.ErrorResponse("An error occurred while retrieving user details", null, 500);
         }
     }
 

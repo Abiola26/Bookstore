@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using Bookstore.Application.Settings;
 using Bookstore.Application.Services;
+using Microsoft.Extensions.Logging;
 
 namespace Bookstore.Tests.Unit.Infrastructure.Services;
 
@@ -21,6 +22,7 @@ public class BookServiceTests
     private readonly Mock<IBookRepository> _bookRepositoryMock;
     private readonly Mock<ICategoryRepository> _categoryRepositoryMock;
     private readonly Mock<IUnitOfWork> _unitOfWorkMock;
+    private readonly Mock<ILogger<BookService>> _bookLoggerMock;
     private readonly BookService _service;
 
     public BookServiceTests()
@@ -28,11 +30,12 @@ public class BookServiceTests
         _bookRepositoryMock = new Mock<IBookRepository>();
         _categoryRepositoryMock = new Mock<ICategoryRepository>();
         _unitOfWorkMock = new Mock<IUnitOfWork>();
+        _bookLoggerMock = new Mock<ILogger<BookService>>();
 
         _unitOfWorkMock.Setup(u => u.Books).Returns(_bookRepositoryMock.Object);
         _unitOfWorkMock.Setup(u => u.Categories).Returns(_categoryRepositoryMock.Object);
 
-        _service = new BookService(_unitOfWorkMock.Object);
+        _service = new BookService(_unitOfWorkMock.Object, _bookLoggerMock.Object);
     }
 
     [Fact]
@@ -188,6 +191,7 @@ public class CategoryServiceTests
     private readonly Mock<ICategoryRepository> _categoryRepositoryMock;
     private readonly Mock<IBookRepository> _bookRepositoryMock;
     private readonly Mock<IUnitOfWork> _unitOfWorkMock;
+    private readonly Mock<ILogger<CategoryService>> _categoryLoggerMock;
     private readonly CategoryService _service;
 
     public CategoryServiceTests()
@@ -195,11 +199,12 @@ public class CategoryServiceTests
         _categoryRepositoryMock = new Mock<ICategoryRepository>();
         _bookRepositoryMock = new Mock<IBookRepository>();
         _unitOfWorkMock = new Mock<IUnitOfWork>();
+        _categoryLoggerMock = new Mock<ILogger<CategoryService>>();
 
         _unitOfWorkMock.Setup(u => u.Categories).Returns(_categoryRepositoryMock.Object);
         _unitOfWorkMock.Setup(u => u.Books).Returns(_bookRepositoryMock.Object);
 
-        _service = new CategoryService(_unitOfWorkMock.Object);
+        _service = new CategoryService(_unitOfWorkMock.Object, _categoryLoggerMock.Object);
     }
 
     [Fact]
@@ -284,6 +289,7 @@ public class AuthenticationServiceTests
     private readonly Mock<IUnitOfWork> _unitOfWorkMock;
     private readonly Mock<IPasswordHasher> _passwordHasherMock;
     private readonly Mock<IEmailSender> _emailSenderMock;
+    private readonly Mock<ILogger<AuthenticationService>> _authLoggerMock;
     private readonly AuthenticationService _service;
 
     public AuthenticationServiceTests()
@@ -323,7 +329,9 @@ public class AuthenticationServiceTests
         var jwtOptions = Options.Create(jwtSettings);
         var emailOptions = Options.Create(emailSettings);
 
-        _service = new AuthenticationService(_unitOfWorkMock.Object, jwtOptions, emailOptions, _passwordHasherMock.Object, _emailSenderMock.Object);
+        _authLoggerMock = new Mock<ILogger<AuthenticationService>>();
+
+        _service = new AuthenticationService(_unitOfWorkMock.Object, _authLoggerMock.Object, jwtOptions, emailOptions, _passwordHasherMock.Object, _emailSenderMock.Object);
     }
 
     // Configuration is provided via IOptions in tests

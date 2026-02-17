@@ -1,3 +1,4 @@
+using Bookstore.Application.Common;
 using Bookstore.Application.DTOs;
 using Bookstore.Domain.Entities;
 using Bookstore.Domain.Enum;
@@ -57,7 +58,7 @@ public class BooksApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<BookPaginatedResponseDto>>();
+        var content = await response.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<PagedResult<BookResponseDto>>>();
         content.Should().NotBeNull();
     }
 
