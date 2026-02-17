@@ -20,10 +20,7 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
             .IsUnique()
             .HasDatabaseName("IX_Categories_Name");
 
-        builder.HasMany(typeof(Book))
-               .WithOne("Category")
-               .HasForeignKey("CategoryId")
-               .OnDelete(DeleteBehavior.Restrict);
+        // Relationship configured on the Book side to avoid duplicate/conflicting configuration
 
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt).IsRequired();

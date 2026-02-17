@@ -26,9 +26,19 @@ public class EmailFlowTests : IClassFixture<WebApplicationFactory<Program>>
                 services.AddSingleton<InMemoryEmailSender>();
                 services.AddSingleton<IEmailSender>(sp => sp.GetRequiredService<InMemoryEmailSender>());
 
-                // Use in-memory EF for testing
-                var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<BookStoreDbContext>));
-                if (descriptor != null) services.Remove(descriptor);
+                // Aggressively remove all EF Core related services to avoid provider conflicts
+                var efDescriptors = services.Where(d =>
+                    d.ServiceType.Namespace?.StartsWith("Microsoft.EntityFrameworkCore") == true ||
+                    d.ImplementationType?.Namespace?.StartsWith("Microsoft.EntityFrameworkCore") == true).ToList();
+
+                foreach (var d in efDescriptors)
+                {
+                    services.Remove(d);
+                }
+
+                // Also specifically remove the DbContext and its options
+                services.RemoveAll(typeof(DbContextOptions<BookStoreDbContext>));
+                services.RemoveAll(typeof(BookStoreDbContext));
 
                 services.AddDbContext<BookStoreDbContext>(options =>
                 {
@@ -66,7 +76,7 @@ public class EmailFlowTests : IClassFixture<WebApplicationFactory<Program>>
         var tokenIndex = body.IndexOf(tokenMarker);
         tokenIndex.Should().BeGreaterThan(0);
         var tokenPart = body.Substring(tokenIndex + tokenMarker.Length);
-        var token = System.Net.WebUtility.HtmlDecode(tokenPart.Split('"', '&', '>')[0]);
+        var token = System.Net.WebUtility.UrlDecode(tokenPart.Split('"', '&', '>')[0]);
 
         // Extract userId from email body
         var userIdMarker = "userId=";
@@ -92,7 +102,7 @@ public class EmailFlowTests : IClassFixture<WebApplicationFactory<Program>>
         var rTokenIndex = resetBody.IndexOf("token=");
         rTokenIndex.Should().BeGreaterThan(0);
         var rTokenPart = resetBody.Substring(rTokenIndex + "token=".Length);
-        var rToken = System.Net.WebUtility.HtmlDecode(rTokenPart.Split('"', '&', '>')[0]);
+        var rToken = System.Net.WebUtility.UrlDecode(rTokenPart.Split('"', '&', '>')[0]);
 
         // Reset password
         var resetDto = new PasswordResetDto { UserId = userId, Token = rToken, NewPassword = "An0therStr0ng!" };

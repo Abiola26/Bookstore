@@ -1,4 +1,5 @@
 using Bookstore.Domain.Entities;
+using Bookstore.Domain.Enum;
 using Bookstore.Domain.ValueObjects;
 
 namespace Bookstore.Tests.Builders;

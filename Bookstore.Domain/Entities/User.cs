@@ -1,14 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using Bookstore.Domain.Enum;
 
 namespace Bookstore.Domain.Entities;
-
-public enum UserRole
-{
-    Admin,
-    User
-}
 
 public sealed class User : BaseEntity
 {

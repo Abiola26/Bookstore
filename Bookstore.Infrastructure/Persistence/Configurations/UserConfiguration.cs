@@ -1,4 +1,5 @@
 using Bookstore.Domain.Entities;
+using Bookstore.Domain.Enum;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 

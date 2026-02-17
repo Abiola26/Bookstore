@@ -1,3 +1,4 @@
+using Bookstore.Domain.Enum;
 using Bookstore.Infrastructure.Persistence;
 using Bookstore.Infrastructure.Persistence.Repositories;
 using Bookstore.Tests.Builders;
@@ -303,6 +304,6 @@ public class OrderRepositoryTests
         // Assert
         var result = await _repository.GetByIdAsync(order.Id);
         result.Should().NotBeNull();
-        result!.Status.Should().Be(Bookstore.Domain.Entities.OrderStatus.Pending);
+        result!.Status.Should().Be(OrderStatus.Pending);
     }
 }

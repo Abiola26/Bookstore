@@ -1,17 +1,9 @@
 using System;
 using System.Collections.Generic;
+using Bookstore.Domain.Enum;
 using Bookstore.Domain.ValueObjects;
 
 namespace Bookstore.Domain.Entities;
-
-public enum OrderStatus
-{
-    Pending,
-    Paid,
-    Cancelled,
-    Shipped,
-    Completed
-}
 
 public class Order : BaseEntity
 {

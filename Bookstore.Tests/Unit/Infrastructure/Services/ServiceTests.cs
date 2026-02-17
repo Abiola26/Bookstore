@@ -336,7 +336,7 @@ public class AuthenticationServiceTests
         {
             FullName = "John Doe",
             Email = "john@example.com",
-            Password = "SecurePassword123!",
+            Password = "SecureSecret123!",
             PhoneNumber = "+1234567890"
         };
         var cancellationToken = CancellationToken.None;
@@ -370,7 +370,7 @@ public class AuthenticationServiceTests
         {
             FullName = "Jane Doe",
             Email = "existing@example.com",
-            Password = "SecurePassword123!",
+            Password = "SecureSecret123!",
             PhoneNumber = "+1234567890"
         };
         var cancellationToken = CancellationToken.None;
@@ -393,7 +393,7 @@ public class AuthenticationServiceTests
     public async Task LoginAsync_WithValidCredentials_ShouldReturnToken()
     {
         // Arrange
-        var password = "SecurePassword123!";
+        var password = "SecureSecret123!";
         var user = new UserBuilder()
             .WithEmail("test@example.com")
             .WithPasswordHash(BCrypt.Net.BCrypt.HashPassword(password))

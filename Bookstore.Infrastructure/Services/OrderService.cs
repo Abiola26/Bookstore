@@ -6,6 +6,7 @@ using Bookstore.Application.Repositories;
 using Bookstore.Application.Validators;
 using Bookstore.Domain.Entities;
 using Bookstore.Domain.ValueObjects;
+using Bookstore.Domain.Enum;
 
 namespace Bookstore.Infrastructure.Services;
 
