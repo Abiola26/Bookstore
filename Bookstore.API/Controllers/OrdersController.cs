@@ -1,7 +1,9 @@
 using Bookstore.Application.DTOs;
 using Bookstore.Application.Services;
+using Bookstore.Application.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Bookstore.API.Controllers;
 
@@ -21,6 +23,30 @@ public class OrdersController : ControllerBase
     {
         _orderService = orderService;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// Get all orders with pagination (Admin only)
+    /// </summary>
+    /// <param name="pageNumber">Page number (default 1)</param>
+    /// <param name="pageSize">Page size (default 10)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Paginated list of all orders</returns>
+    /// <response code="200">Orders retrieved successfully</response>
+    /// <response code="400">Invalid pagination parameters</response>
+    /// <response code="401">Unauthorized</response>
+    /// <response code="403">Forbidden - Admin only</response>
+    [HttpGet]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse<PagedResult<OrderResponseDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetAllOrders([FromQuery] int pageNumber = ApplicationConstants.Pagination.DefaultPageNumber, [FromQuery] int pageSize = ApplicationConstants.Pagination.DefaultPageSize, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Get all orders - page {PageNumber}, size {PageSize}", pageNumber, pageSize);
+        var response = await _orderService.GetAllOrdersPaginatedAsync(pageNumber, pageSize, cancellationToken);
+        return StatusCode(response.StatusCode ?? 400, response);
     }
 
     /// <summary>
@@ -54,10 +80,10 @@ public class OrdersController : ControllerBase
     /// <response code="400">Invalid pagination parameters</response>
     /// <response code="401">Unauthorized</response>
     [HttpGet("my-orders")]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse<ICollection<OrderResponseDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse<PagedResult<OrderResponseDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> GetMyOrders([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> GetMyOrders([FromQuery] int pageNumber = ApplicationConstants.Pagination.DefaultPageNumber, [FromQuery] int pageSize = ApplicationConstants.Pagination.DefaultPageSize, CancellationToken cancellationToken = default)
     {
         var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (!Guid.TryParse(userIdClaim, out var userId))
@@ -79,6 +105,7 @@ public class OrdersController : ControllerBase
     /// <response code="401">Unauthorized</response>
     /// <response code="404">Book not found</response>
     [HttpPost]
+    [EnableRateLimiting("orderPolicy")]
     [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse<OrderResponseDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status401Unauthorized)]
@@ -89,8 +116,13 @@ public class OrdersController : ControllerBase
         if (!Guid.TryParse(userIdClaim, out var userId))
             return Unauthorized();
 
-        _logger.LogInformation("Create order for user {UserId} with {ItemCount} items", userId, dto.Items.Count);
-        var response = await _orderService.CreateOrderAsync(userId, dto, cancellationToken);
+        // Extract idempotency key from headers (standard practice for idempotent APIs)
+        var idempotencyKey = Request.Headers["X-Idempotency-Key"].ToString();
+
+        _logger.LogInformation("Create order for user {UserId} with {ItemCount} items. IdempotencyKey: {Key}", 
+            userId, dto.Items.Count, string.IsNullOrEmpty(idempotencyKey) ? "None" : "Provided");
+            
+        var response = await _orderService.CreateOrderAsync(userId, dto, idempotencyKey, cancellationToken);
         return StatusCode(response.StatusCode ?? 400, response);
     }
 

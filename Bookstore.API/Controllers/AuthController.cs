@@ -2,6 +2,7 @@ using Bookstore.Application.DTOs;
 using Bookstore.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Bookstore.API.Controllers;
 
@@ -33,12 +34,13 @@ public class AuthController : ControllerBase
     /// <response code="409">Email already exists</response>
     [HttpPost("register")]
     [AllowAnonymous]
+    [EnableRateLimiting("authPolicy")]  // Prevent brute force
     [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse<AuthResponseDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Register([FromBody] UserRegisterDto dto, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Register attempt for email: {Email}", dto.Email);
+        _logger.LogInformation("Registration request received for a new user");
         var response = await _authService.RegisterAsync(dto, cancellationToken);
         return StatusCode(response.StatusCode ?? 400, response);
     }
@@ -54,12 +56,13 @@ public class AuthController : ControllerBase
     /// <response code="401">Invalid credentials</response>
     [HttpPost("login")]
     [AllowAnonymous]
+    [EnableRateLimiting("authPolicy")]  // Prevent brute force
     [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse<AuthResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Login([FromBody] UserLoginDto dto, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Login attempt for email: {Email}", dto.Email);
+        _logger.LogInformation("Login request received");
         var response = await _authService.LoginAsync(dto, cancellationToken);
         return StatusCode(response.StatusCode ?? 400, response);
     }

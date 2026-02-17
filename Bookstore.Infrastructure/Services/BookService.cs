@@ -1,6 +1,7 @@
 using Bookstore.Application.DTOs;
 using Bookstore.Application.Common;
 using Bookstore.Application.Services;
+using Microsoft.Extensions.Logging;
 using Bookstore.Application.Exceptions;
 using Bookstore.Application.Repositories;
 using Bookstore.Application.Validators;
@@ -13,12 +14,14 @@ namespace Bookstore.Infrastructure.Services;
 public class BookService : IBookService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<BookService> _logger;
     private readonly BookCreateDtoValidator _createValidator;
     private readonly BookUpdateDtoValidator _updateValidator;
 
-    public BookService(IUnitOfWork unitOfWork)
+    public BookService(IUnitOfWork unitOfWork, ILogger<BookService> logger)
     {
         _unitOfWork = unitOfWork;
+        _logger = logger;
         _createValidator = new BookCreateDtoValidator();
         _updateValidator = new BookUpdateDtoValidator();
     }
@@ -35,7 +38,8 @@ public class BookService : IBookService
         }
         catch (Exception ex)
         {
-            return ApiResponse<BookResponseDto>.ErrorResponse($"Failed to retrieve book: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error retrieving book {BookId}", id);
+            return ApiResponse<BookResponseDto>.ErrorResponse("An error occurred while retrieving the book", null, 500);
         }
     }
 
@@ -49,33 +53,30 @@ public class BookService : IBookService
         }
         catch (Exception ex)
         {
-            return ApiResponse<ICollection<BookResponseDto>>.ErrorResponse($"Failed to retrieve books: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error retrieving all books");
+            return ApiResponse<ICollection<BookResponseDto>>.ErrorResponse("An error occurred while retrieving books", null, 500);
         }
     }
 
-    public async Task<ApiResponse<BookPaginatedResponseDto>> GetBooksPagedAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<PagedResult<BookResponseDto>>> GetBooksPagedAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default)
     {
         try
         {
             if (pageNumber < 1 || pageSize < 1)
-                return ApiResponse<BookPaginatedResponseDto>.ErrorResponse("Page number and page size must be greater than 0", null, 400);
+                return ApiResponse<PagedResult<BookResponseDto>>.ErrorResponse("Page number and page size must be greater than 0", null, 400);
 
             var books = await _unitOfWork.Books.GetPaginatedAsync(pageNumber, pageSize, cancellationToken);
             var totalCount = await _unitOfWork.Books.GetTotalCountAsync(cancellationToken);
 
-            var response = new BookPaginatedResponseDto
-            {
-                Data = books.Select(MapToDto).ToList(),
-                PageNumber = pageNumber,
-                PageSize = pageSize,
-                TotalCount = totalCount
-            };
+            var dtos = books.Select(MapToDto).ToList();
+            var pagedResult = new PagedResult<BookResponseDto>(dtos, totalCount, pageNumber, pageSize);
 
-            return ApiResponse<BookPaginatedResponseDto>.SuccessResponse(response);
+            return ApiResponse<PagedResult<BookResponseDto>>.SuccessResponse(pagedResult);
         }
         catch (Exception ex)
         {
-            return ApiResponse<BookPaginatedResponseDto>.ErrorResponse($"Failed to retrieve books: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error retrieving paged books. Page: {PageNumber}, Size: {PageSize}", pageNumber, pageSize);
+            return ApiResponse<PagedResult<BookResponseDto>>.ErrorResponse("An error occurred while retrieving books", null, 500);
         }
     }
 
@@ -92,40 +93,37 @@ public class BookService : IBookService
         }
         catch (Exception ex)
         {
-            return ApiResponse<ICollection<BookResponseDto>>.ErrorResponse($"Search failed: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Search failed for title: {SearchTitle}", title);
+            return ApiResponse<ICollection<BookResponseDto>>.ErrorResponse("An error occurred during search", null, 500);
         }
     }
 
-    public async Task<ApiResponse<BookPaginatedResponseDto>> GetBooksByCategoryAsync(Guid categoryId, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<PagedResult<BookResponseDto>>> GetBooksByCategoryAsync(Guid categoryId, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
     {
         try
         {
             if (pageNumber < 1 || pageSize < 1)
-                return ApiResponse<BookPaginatedResponseDto>.ErrorResponse("Page number and page size must be greater than 0", null, 400);
+                return ApiResponse<PagedResult<BookResponseDto>>.ErrorResponse("Page number and page size must be greater than 0", null, 400);
 
             if (categoryId == Guid.Empty)
-                return ApiResponse<BookPaginatedResponseDto>.ErrorResponse("Category ID is required", null, 400);
+                return ApiResponse<PagedResult<BookResponseDto>>.ErrorResponse("Category ID is required", null, 400);
 
             var category = await _unitOfWork.Categories.GetByIdAsync(categoryId, cancellationToken);
             if (category == null)
-                return ApiResponse<BookPaginatedResponseDto>.ErrorResponse("Category not found", null, 404);
+                return ApiResponse<PagedResult<BookResponseDto>>.ErrorResponse("Category not found", null, 404);
 
             var books = await _unitOfWork.Books.GetPaginatedByCategoryAsync(categoryId, pageNumber, pageSize, cancellationToken);
             var totalCount = await _unitOfWork.Books.GetCategoryBookCountAsync(categoryId, cancellationToken);
 
-            var response = new BookPaginatedResponseDto
-            {
-                Data = books.Select(MapToDto).ToList(),
-                PageNumber = pageNumber,
-                PageSize = pageSize,
-                TotalCount = totalCount
-            };
+            var dtos = books.Select(MapToDto).ToList();
+            var pagedResult = new PagedResult<BookResponseDto>(dtos, totalCount, pageNumber, pageSize);
 
-            return ApiResponse<BookPaginatedResponseDto>.SuccessResponse(response);
+            return ApiResponse<PagedResult<BookResponseDto>>.SuccessResponse(pagedResult);
         }
         catch (Exception ex)
         {
-            return ApiResponse<BookPaginatedResponseDto>.ErrorResponse($"Failed to retrieve books: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error retrieving books for category {CategoryId}", categoryId);
+            return ApiResponse<PagedResult<BookResponseDto>>.ErrorResponse("An error occurred while retrieving books", null, 500);
         }
     }
 
@@ -174,7 +172,8 @@ public class BookService : IBookService
         }
         catch (Exception ex)
         {
-            return ApiResponse<BookResponseDto>.ErrorResponse($"Failed to create book: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error creating book: {BookTitle}", dto.Title);
+            return ApiResponse<BookResponseDto>.ErrorResponse("An error occurred while creating the book", null, 500);
         }
     }
 
@@ -240,7 +239,8 @@ public class BookService : IBookService
         }
         catch (Exception ex)
         {
-            return ApiResponse<BookResponseDto>.ErrorResponse($"Failed to update book: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error updating book {BookId}", id);
+            return ApiResponse<BookResponseDto>.ErrorResponse("An error occurred while updating the book", null, 500);
         }
     }
 
@@ -259,7 +259,8 @@ public class BookService : IBookService
         }
         catch (Exception ex)
         {
-            return ApiResponse.ErrorResponse($"Failed to delete book: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error deleting book {BookId}", id);
+            return ApiResponse.ErrorResponse("An error occurred while deleting the book", null, 500);
         }
     }
 

@@ -1,5 +1,6 @@
 using Bookstore.Application.DTOs;
 using Bookstore.Application.Services;
+using Bookstore.Application.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -33,9 +34,10 @@ public class BooksController : ControllerBase
     /// <response code="400">Invalid pagination parameters</response>
     [HttpGet]
     [AllowAnonymous]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse<BookPaginatedResponseDto>), StatusCodes.Status200OK)]
+    [ResponseCache(Duration = ApplicationConstants.Cache.DefaultExpirationSeconds, VaryByQueryKeys = new[] { "pageNumber", "pageSize" })]
+    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse<PagedResult<BookResponseDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> GetBooks([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> GetBooks([FromQuery] int pageNumber = ApplicationConstants.Pagination.DefaultPageNumber, [FromQuery] int pageSize = ApplicationConstants.Pagination.DefaultPageSize, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Get books page {PageNumber} with size {PageSize}", pageNumber, pageSize);
         var response = await _bookService.GetBooksPagedAsync(pageNumber, pageSize, cancellationToken);
@@ -52,6 +54,7 @@ public class BooksController : ControllerBase
     /// <response code="404">Book not found</response>
     [HttpGet("{id:guid}")]
     [AllowAnonymous]
+    [ResponseCache(Duration = ApplicationConstants.Cache.DefaultExpirationSeconds, VaryByQueryKeys = new[] { "id" })]
     [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse<BookResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetBookById(Guid id, CancellationToken cancellationToken)
@@ -73,9 +76,15 @@ public class BooksController : ControllerBase
     [AllowAnonymous]
     [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse<ICollection<BookResponseDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> SearchByTitle(string title, CancellationToken cancellationToken)
+    public async Task<IActionResult> SearchByTitle([FromRoute] string title, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Search books by title: {Title}", title);
+        if (string.IsNullOrWhiteSpace(title) || title.Length < ApplicationConstants.Validation.MinSearchLength)
+            return BadRequest(Bookstore.Application.Common.ApiResponse.ErrorResponse($"Search title must be at least {ApplicationConstants.Validation.MinSearchLength} characters", null, 400));
+
+        if (title.Length > ApplicationConstants.Validation.MaxSearchLength)
+            return BadRequest(Bookstore.Application.Common.ApiResponse.ErrorResponse($"Search title is too long (max {ApplicationConstants.Validation.MaxSearchLength} characters)", null, 400));
+
+        _logger.LogInformation("Search books by title: {SearchQuery}", title);
         var response = await _bookService.SearchByTitleAsync(title, cancellationToken);
         return StatusCode(response.StatusCode ?? 400, response);
     }
@@ -93,10 +102,11 @@ public class BooksController : ControllerBase
     /// <response code="404">Category not found</response>
     [HttpGet("category/{categoryId:guid}")]
     [AllowAnonymous]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse<BookPaginatedResponseDto>), StatusCodes.Status200OK)]
+    [ResponseCache(Duration = ApplicationConstants.Cache.DefaultExpirationSeconds, VaryByQueryKeys = new[] { "categoryId", "pageNumber", "pageSize" })]
+    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse<PagedResult<BookResponseDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetByCategory(Guid categoryId, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> GetByCategory(Guid categoryId, [FromQuery] int pageNumber = ApplicationConstants.Pagination.DefaultPageNumber, [FromQuery] int pageSize = ApplicationConstants.Pagination.DefaultPageSize, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Get books for category {CategoryId}", categoryId);
         var response = await _bookService.GetBooksByCategoryAsync(categoryId, pageNumber, pageSize, cancellationToken);

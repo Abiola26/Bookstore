@@ -1,6 +1,7 @@
 using Bookstore.Application.DTOs;
 using Bookstore.Application.Common;
 using Bookstore.Application.Services;
+using Microsoft.Extensions.Logging;
 using Bookstore.Application.Exceptions;
 using Bookstore.Application.Repositories;
 using Bookstore.Application.Validators;
@@ -13,11 +14,13 @@ namespace Bookstore.Infrastructure.Services;
 public class OrderService : IOrderService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<OrderService> _logger;
     private readonly OrderCreateDtoValidator _createValidator;
 
-    public OrderService(IUnitOfWork unitOfWork)
+    public OrderService(IUnitOfWork unitOfWork, ILogger<OrderService> logger)
     {
         _unitOfWork = unitOfWork;
+        _logger = logger;
         _createValidator = new OrderCreateDtoValidator();
     }
 
@@ -33,7 +36,8 @@ public class OrderService : IOrderService
         }
         catch (Exception ex)
         {
-            return ApiResponse<OrderResponseDto>.ErrorResponse($"Failed to retrieve order: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error retrieving order {OrderId}", id);
+            return ApiResponse<OrderResponseDto>.ErrorResponse("An error occurred while retrieving the order", null, 500);
         }
     }
 
@@ -52,33 +56,60 @@ public class OrderService : IOrderService
         }
         catch (Exception ex)
         {
-            return ApiResponse<ICollection<OrderResponseDto>>.ErrorResponse($"Failed to retrieve orders: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error retrieving orders for user {UserId}", userId);
+            return ApiResponse<ICollection<OrderResponseDto>>.ErrorResponse("An error occurred while retrieving orders", null, 500);
         }
     }
 
-    public async Task<ApiResponse<ICollection<OrderResponseDto>>> GetUserOrdersPaginatedAsync(Guid userId, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<PagedResult<OrderResponseDto>>> GetUserOrdersPaginatedAsync(Guid userId, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
     {
         try
         {
             if (pageNumber < 1 || pageSize < 1)
-                return ApiResponse<ICollection<OrderResponseDto>>.ErrorResponse("Page number and page size must be greater than 0", null, 400);
+                return ApiResponse<PagedResult<OrderResponseDto>>.ErrorResponse("Page number and page size must be greater than 0", null, 400);
 
             var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
             if (user == null)
-                return ApiResponse<ICollection<OrderResponseDto>>.ErrorResponse("User not found", null, 404);
+                return ApiResponse<PagedResult<OrderResponseDto>>.ErrorResponse("User not found", null, 404);
 
             var orders = await _unitOfWork.Orders.GetByUserIdPaginatedAsync(userId, pageNumber, pageSize, cancellationToken);
+            var totalCount = await _unitOfWork.Orders.GetUserOrderCountAsync(userId, cancellationToken);
+            
             var dtos = orders.Select(MapToDto).ToList();
+            var pagedResult = new PagedResult<OrderResponseDto>(dtos, totalCount, pageNumber, pageSize);
 
-            return ApiResponse<ICollection<OrderResponseDto>>.SuccessResponse(dtos);
+            return ApiResponse<PagedResult<OrderResponseDto>>.SuccessResponse(pagedResult);
         }
         catch (Exception ex)
         {
-            return ApiResponse<ICollection<OrderResponseDto>>.ErrorResponse($"Failed to retrieve orders: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error retrieving paged orders for user {UserId}", userId);
+            return ApiResponse<PagedResult<OrderResponseDto>>.ErrorResponse("An error occurred while retrieving orders", null, 500);
         }
     }
 
-    public async Task<ApiResponse<OrderResponseDto>> CreateOrderAsync(Guid userId, OrderCreateDto dto, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<PagedResult<OrderResponseDto>>> GetAllOrdersPaginatedAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (pageNumber < 1 || pageSize < 1)
+                return ApiResponse<PagedResult<OrderResponseDto>>.ErrorResponse("Page number and page size must be greater than 0", null, 400);
+
+            var orders = await _unitOfWork.Orders.GetAllOrdersPaginatedAsync(pageNumber, pageSize, cancellationToken);
+            var totalCount = await _unitOfWork.Orders.GetTotalOrderCountAsync(cancellationToken);
+            
+            var dtos = orders.Select(MapToDto).ToList();
+            var pagedResult = new PagedResult<OrderResponseDto>(dtos, totalCount, pageNumber, pageSize);
+
+            return ApiResponse<PagedResult<OrderResponseDto>>.SuccessResponse(pagedResult);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving all paged orders");
+            return ApiResponse<PagedResult<OrderResponseDto>>.ErrorResponse("An error occurred while retrieving orders", null, 500);
+        }
+    }
+
+    public async Task<ApiResponse<OrderResponseDto>> CreateOrderAsync(Guid userId, OrderCreateDto dto, string? idempotencyKey = null, CancellationToken cancellationToken = default)
     {
         var validationErrors = _createValidator.Validate(dto);
         if (validationErrors.Count > 0)
@@ -86,17 +117,38 @@ public class OrderService : IOrderService
 
         try
         {
+            // IDEMPOTENCY CHECK
+            if (!string.IsNullOrWhiteSpace(idempotencyKey))
+            {
+                var existingOrder = await _unitOfWork.Orders.GetByIdempotencyKeyAsync(idempotencyKey, cancellationToken);
+                if (existingOrder != null)
+                {
+                    // If order belongs to a different user, return error
+                    if (existingOrder.UserId != userId)
+                        return ApiResponse<OrderResponseDto>.ErrorResponse("Invalid idempotency key for this user", null, 409);
+
+                    return ApiResponse<OrderResponseDto>.SuccessResponse(MapToDto(existingOrder), "Order already exists (idempotent result)");
+                }
+            }
+
             // Verify user exists
             var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
             if (user == null)
                 return ApiResponse<OrderResponseDto>.ErrorResponse("User not found", null, 404);
+
+            // SECURITY FIX: Enforce email confirmation for critical operations
+            if (!user.EmailConfirmed)
+                return ApiResponse<OrderResponseDto>.ErrorResponse("Email must be confirmed before place an order", null, 403);
 
             // Start transaction for order creation and inventory update
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
             try
             {
-                var order = new Order(userId);
+                var order = new Order(userId)
+                {
+                    IdempotencyKey = idempotencyKey
+                };
                 var totalAmount = Money.Zero("USD");
 
                 foreach (var itemDto in dto.Items)
@@ -153,7 +205,8 @@ public class OrderService : IOrderService
         }
         catch (Exception ex)
         {
-            return ApiResponse<OrderResponseDto>.ErrorResponse($"Failed to create order: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error creating order for user {UserId}", userId);
+            return ApiResponse<OrderResponseDto>.ErrorResponse("An error occurred while creating the order", null, 500);
         }
     }
 
@@ -189,7 +242,8 @@ public class OrderService : IOrderService
         }
         catch (Exception ex)
         {
-            return ApiResponse<OrderResponseDto>.ErrorResponse($"Failed to update order status: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error updating status for order {OrderId}", orderId);
+            return ApiResponse<OrderResponseDto>.ErrorResponse("An error occurred while updating order status", null, 500);
         }
     }
 
@@ -240,7 +294,8 @@ public class OrderService : IOrderService
         }
         catch (Exception ex)
         {
-            return ApiResponse.ErrorResponse($"Failed to cancel order: {ex.Message}", null, 500);
+            _logger.LogError(ex, "Error cancelling order {OrderId}", orderId);
+            return ApiResponse.ErrorResponse("An error occurred while cancelling the order", null, 500);
         }
     }
 

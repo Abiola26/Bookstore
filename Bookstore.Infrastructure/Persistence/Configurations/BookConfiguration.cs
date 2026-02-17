@@ -87,6 +87,8 @@ public class BookConfiguration : IEntityTypeConfiguration<Book>
         // Use string-based index definition for properties that use conversions
         // (EF.Property in an anonymous expression is not a valid member access for HasIndex)
         builder.HasIndex(new[] { nameof(Book.CategoryId), "ISBN" });
+
+        builder.HasIndex(b => b.Title);
     }
 }
 

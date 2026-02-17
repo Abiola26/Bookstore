@@ -15,6 +15,7 @@ public class Order : BaseEntity
     public Money TotalAmount { get; set; } = Money.Zero();
 
     public OrderStatus Status { get; set; } = OrderStatus.Pending;
+    public string? IdempotencyKey { get; set; }
 
     public IReadOnlyCollection<OrderItem> OrderItems => _orderItems.AsReadOnly();
 

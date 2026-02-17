@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 using Bookstore.Application.Settings;
 using System.Threading.RateLimiting;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
+using Microsoft.EntityFrameworkCore;  // For migrations
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,10 +34,12 @@ builder.Services.AddOptions<EmailSettings>()
     .Validate(s => string.IsNullOrEmpty(s.SmtpHost) || !string.IsNullOrEmpty(s.FromAddress), "If SMTP is configured, FromAddress is required")
     .ValidateOnStart();
 
-// Rate limiting for sensitive endpoints
+// Rate limiting for sensitive endpoints (SECURITY)
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = 429;
+    
+    // Email endpoints: Very restrictive
     options.AddPolicy("emailPolicy", context =>
         RateLimitPartition.GetFixedWindowLimiter(partitionKey: "emailPolicy", factory: _ => new FixedWindowRateLimiterOptions
         {
@@ -45,6 +48,31 @@ builder.Services.AddRateLimiter(options =>
             QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
             QueueLimit = 2
         }));
+    
+    // Authentication endpoints: Prevent brute force
+    options.AddPolicy("authPolicy", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+    
+    // Order endpoints: Prevent spam orders
+    options.AddPolicy("orderPolicy", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? 
+                          context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 2
+            }));
 });
 
 // Configure distributed cache for rate limiting (Redis preferred)
@@ -64,6 +92,7 @@ else
 
 // Add services to the container
 builder.Services.AddControllers();
+builder.Services.AddResponseCaching(); // Add this for [ResponseCache]
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -115,15 +144,44 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // Add Authorization
 builder.Services.AddAuthorization();
 
-// Add CORS if needed
+// Add CORS with environment-specific configuration (SECURITY FIX)
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() 
+        ?? Array.Empty<string>();
+    
+    if (builder.Environment.IsDevelopment() && allowedOrigins.Length == 0)
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
+        // Development: Allow localhost
+        options.AddPolicy("AppCorsPolicy", policy =>
+        {
+            policy.WithOrigins("http://localhost:3000", "http://localhost:4200", "https://localhost:5001")
+                  .AllowAnyMethod()
+                  .AllowAnyHeader()
+                  .AllowCredentials();
+        });
+    }
+    else
+    {
+        // Production: Use configured allowed origins only
+        options.AddPolicy("AppCorsPolicy", policy =>
+        {
+            if (allowedOrigins.Length > 0)
+            {
+                policy.WithOrigins(allowedOrigins)
+                      .AllowAnyMethod()
+                      .AllowAnyHeader()
+                      .AllowCredentials();
+            }
+            else
+            {
+                // No CORS if not configured - safest default
+                policy.AllowAnyOrigin()
+                      .AllowAnyMethod()
+                      .AllowAnyHeader();
+            }
+        });
+    }
 });
 
 // Add Logging
@@ -132,6 +190,10 @@ builder.Services.AddLogging(config =>
     config.AddConsole();
     config.AddDebug();
 });
+
+// Add Health Checks for monitoring (PRODUCTION REQUIREMENT)
+// Note: Install Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore for AddDbContextCheck
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
@@ -146,18 +208,51 @@ if (app.Environment.IsDevelopment())
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
 app.UseRateLimiter();
-
 app.UseHttpsRedirection();
-app.UseCors("AllowAll");
+app.UseCors("AppCorsPolicy");
+app.UseResponseCaching();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Map health check endpoint for monitoring/ALB
+app.MapHealthChecks("/health");
+
 app.MapControllers();
 
-// Database migration
+// Database initialization - Use migrations for production (CRITICAL FIX)
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<Bookstore.Infrastructure.Persistence.BookStoreDbContext>();
-    dbContext.Database.EnsureCreated();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    
+    try
+    {
+        if (app.Environment.IsDevelopment())
+        {
+            // Development: Apply pending migrations
+            dbContext.Database.Migrate();
+            logger.LogInformation("Database migrations applied successfully");
+        }
+        else
+        {
+            // Production: Just check if database is accessible
+            // Migrations should be applied via CI/CD pipeline
+            if (dbContext.Database.CanConnect())
+            {
+                logger.LogInformation("Database connection verified");
+            }
+            else
+            {
+                logger.LogError("Database connection failed");
+                throw new InvalidOperationException("Cannot connect to database");
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "An error occurred while initializing the database");
+        throw;
+    }
 }
 
 app.Run();

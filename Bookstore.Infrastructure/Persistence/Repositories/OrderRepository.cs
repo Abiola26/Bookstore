@@ -43,4 +43,29 @@ public class OrderRepository : GenericRepository<Order>, IOrderRepository
             .Include(o => o.User)
             .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
     }
+
+    public async Task<ICollection<Order>> GetAllOrdersPaginatedAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+    {
+        return await _dbSet
+            .Include(o => o.OrderItems)
+            .ThenInclude(oi => oi.Book)
+            .Include(o => o.User)
+            .OrderByDescending(o => o.CreatedAt)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<int> GetTotalOrderCountAsync(CancellationToken cancellationToken = default)
+    {
+        return await _dbSet.CountAsync(cancellationToken);
+    }
+
+    public async Task<Order?> GetByIdempotencyKeyAsync(string key, CancellationToken cancellationToken = default)
+    {
+        return await _dbSet
+            .Include(o => o.OrderItems)
+            .ThenInclude(oi => oi.Book)
+            .FirstOrDefaultAsync(o => o.IdempotencyKey == key, cancellationToken);
+    }
 }

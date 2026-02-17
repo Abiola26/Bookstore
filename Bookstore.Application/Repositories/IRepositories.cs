@@ -42,6 +42,9 @@ public interface IOrderRepository : IGenericRepository<Order>
     Task<ICollection<Order>> GetByUserIdPaginatedAsync(Guid userId, int pageNumber, int pageSize, CancellationToken cancellationToken = default);
     Task<int> GetUserOrderCountAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<Order?> GetWithItemsAsync(Guid orderId, CancellationToken cancellationToken = default);
+    Task<ICollection<Order>> GetAllOrdersPaginatedAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default);
+    Task<int> GetTotalOrderCountAsync(CancellationToken cancellationToken = default);
+    Task<Order?> GetByIdempotencyKeyAsync(string key, CancellationToken cancellationToken = default);
 }
 
 public interface IOrderItemRepository : IGenericRepository<OrderItem>

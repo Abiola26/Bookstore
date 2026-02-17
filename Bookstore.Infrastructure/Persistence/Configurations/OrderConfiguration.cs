@@ -45,6 +45,14 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.IsDeleted).HasDefaultValue(false);
         builder.Property(o => o.RowVersion).IsRowVersion();
 
+        builder.Property(o => o.IdempotencyKey)
+            .HasMaxLength(100);
+
+        builder.HasIndex(o => o.IdempotencyKey)
+            .IsUnique()
+            .HasFilter("[IdempotencyKey] IS NOT NULL");
+
         builder.HasIndex(o => new { o.UserId, o.Status });
+        builder.HasIndex(o => o.CreatedAt);
     }
 }
