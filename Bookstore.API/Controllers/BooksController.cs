@@ -16,11 +16,13 @@ public class BooksController : ControllerBase
 {
     private readonly IBookService _bookService;
     private readonly ILogger<BooksController> _logger;
+    private readonly Bookstore.Application.Services.IFileStorageService _fileStorage;
 
-    public BooksController(IBookService bookService, ILogger<BooksController> logger)
+    public BooksController(IBookService bookService, ILogger<BooksController> logger, Bookstore.Application.Services.IFileStorageService fileStorage)
     {
         _bookService = bookService;
         _logger = logger;
+        _fileStorage = fileStorage;
     }
 
     /// <summary>
@@ -136,6 +138,38 @@ public class BooksController : ControllerBase
         _logger.LogInformation("Create book with ISBN {ISBN}", dto.ISBN);
         var response = await _bookService.CreateBookAsync(dto, cancellationToken);
         return StatusCode(response.StatusCode ?? 400, response);
+    }
+
+    /// <summary>
+    /// Upload cover image for a book (Admin only) - multipart/form-data
+    /// </summary>
+    [HttpPost("{id:guid}/cover")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> UploadBookCover([FromRoute] Guid id, IFormFile file, CancellationToken cancellationToken)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(Bookstore.Application.Common.ApiResponse.ErrorResponse("No file uploaded", null, 400));
+
+        var allowed = new[] { ".jpg", ".jpeg", ".png", ".gif" };
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!allowed.Contains(ext))
+            return BadRequest(Bookstore.Application.Common.ApiResponse.ErrorResponse("Unsupported file type", null, 400));
+
+        if (file.Length > 5 * 1024 * 1024)
+            return BadRequest(Bookstore.Application.Common.ApiResponse.ErrorResponse("File too large (max 5MB)", null, 400));
+
+        // Save using file storage service
+        var savedPath = await _fileStorage.SaveFileAsync(file.OpenReadStream(), file.FileName, Path.Combine("uploads", "covers"), file.ContentType, cancellationToken);
+
+        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        var url = baseUrl.TrimEnd('/') + savedPath;
+
+        var updateDto = new BookUpdateDto { CoverImageUrl = url };
+        var updateResult = await _bookService.UpdateBookAsync(id, updateDto, cancellationToken);
+        if (!updateResult.Success)
+            return StatusCode(updateResult.StatusCode ?? 500, updateResult);
+
+        return Ok(Bookstore.Application.Common.ApiResponse.SuccessResponse(url, 200));
     }
 
     /// <summary>

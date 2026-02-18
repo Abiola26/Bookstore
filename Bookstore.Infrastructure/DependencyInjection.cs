@@ -3,6 +3,7 @@ using Bookstore.Application.Services;
 using Bookstore.Infrastructure.Services;
 using Bookstore.Infrastructure.Persistence.Repositories;
 using Bookstore.Infrastructure.Persistence;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 
@@ -30,15 +31,18 @@ public static class DependencyInjection
 
         // Services
         // Password hasher
-        services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
+        services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
         // Email sender (SMTP with fallback to logging)
-        services.AddScoped<IEmailSender, SmtpEmailSender>();
+        services.AddSingleton<IEmailSender, SmtpEmailSender>();
+        // File storage
+        services.AddScoped<Bookstore.Application.Services.IFileStorageService, Bookstore.Infrastructure.Services.LocalFileStorageService>();
         // Rate limit service (uses IDistributedCache)
         services.AddScoped<Bookstore.Application.Services.IRateLimitService, Bookstore.Infrastructure.Services.DistributedRateLimitService>();
         services.AddScoped<IBookService, BookService>();
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IOrderService, OrderService>();
+        services.AddScoped<IFileStorageService, LocalFileStorageService>();
 
         return services;
     }

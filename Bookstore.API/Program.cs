@@ -22,6 +22,7 @@ var jwtAudience = builder.Configuration["JWT:Audience"];
 // Bind strongly-typed settings
 builder.Services.Configure<Bookstore.Application.Settings.JwtSettings>(builder.Configuration.GetSection("JWT"));
 builder.Services.Configure<Bookstore.Application.Settings.EmailSettings>(builder.Configuration.GetSection("Email"));
+builder.Services.Configure<Bookstore.Application.Settings.FileSettings>(builder.Configuration.GetSection("FileSettings"));
 
 // Validate options and fail fast for critical settings
 builder.Services.AddOptions<JwtSettings>()
@@ -208,6 +209,8 @@ if (app.Environment.IsDevelopment())
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
 app.UseRateLimiter();
+// Serve uploaded static files (cover images)
+app.UseStaticFiles();
 app.UseHttpsRedirection();
 app.UseCors("AppCorsPolicy");
 app.UseResponseCaching();
@@ -232,8 +235,23 @@ using (var scope = app.Services.CreateScope())
             // Development: Apply pending migrations (skip for InMemory)
             if (dbContext.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory")
             {
-                dbContext.Database.Migrate();
-                logger.LogInformation("Database migrations applied successfully");
+                try
+                {
+                    dbContext.Database.Migrate();
+                    logger.LogInformation("Database migrations applied successfully");
+                }
+                catch (InvalidOperationException iex) when (iex.Message != null && iex.Message.Contains("PendingModelChangesWarning"))
+                {
+                    // EF Core reports that the model has pending changes that require a new migration.
+                    logger.LogError(iex, "EF model has pending changes which require creating a new migration before applying database updates.");
+                    logger.LogError("Action required: run the EF tools to add and apply a migration:\n  dotnet tool install --global dotnet-ef --version 10.0.3 (if not installed)\n  dotnet ef migrations add YourMigrationName --project \"Bookstore.Infrastructure\" --startup-project \"Bookstore.API\" --context BookStoreDbContext\n  dotnet ef database update --project \"Bookstore.Infrastructure\" --startup-project \"Bookstore.API\" --context BookStoreDbContext");
+                    // Do not rethrow to allow the dev server to run; developer must address migrations.
+                }
+                catch
+                {
+                    // rethrow other migration exceptions
+                    throw;
+                }
             }
             else
             {

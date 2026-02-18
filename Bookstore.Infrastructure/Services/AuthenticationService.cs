@@ -43,6 +43,22 @@ public class AuthenticationService : IAuthenticationService
         _loginValidator = new UserLoginDtoValidator();
     }
 
+    private string GetEmailShell(string title, string content)
+    {
+        return $@"
+            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;'>
+                <div style='text-align: center; margin-bottom: 20px;'>
+                    <h1 style='color: #007bff; margin: 0;'>📚 Bookstore</h1>
+                </div>
+                <h2 style='color: #333; text-align: center;'>{title}</h2>
+                <div style='color: #444; line-height: 1.6;'>
+                    {content}
+                </div>
+                <hr style='border: 0; border-top: 1px solid #eee; margin: 20px 0;'>
+                <p style='color: #999; font-size: 12px; text-align: center;'>&copy; {DateTime.Now.Year} Bookstore Inc. All rights reserved.</p>
+            </div>";
+    }
+
     public async Task<ApiResponse> RequestPasswordResetAsync(string email, CancellationToken cancellationToken = default)
     {
         try
@@ -63,8 +79,17 @@ public class AuthenticationService : IAuthenticationService
             var frontendOrigin = _emailOptions.Value?.ConfirmationUrlOrigin ?? string.Empty;
             var resetPath = $"/reset-password?userId={user.Id}&token={Uri.EscapeDataString(resetToken)}";
             var resetUrl = string.IsNullOrEmpty(frontendOrigin) ? resetPath : new Uri(new Uri(frontendOrigin), resetPath).ToString();
-            var emailBody = $"<p>Hi {user.FullName},</p><p>Reset your password by clicking <a href=\"{resetUrl}\">here</a>. This link expires in {expiryHours} hours.</p>";
-            await _emailSender.SendEmailAsync(user.Email, "Password reset", emailBody, cancellationToken);
+
+            var content = $@"
+                <p>Hi <strong>{user.FullName}</strong>,</p>
+                <p>We received a request to reset your password. If you didn't make this request, you can safely ignore this email.</p>
+                <p>To reset your password, please click the button below within the next <strong>{expiryHours} hours</strong>:</p>
+                <div style='text-align: center; margin: 30px 0;'>
+                    <a href='{resetUrl}' style='background-color: #dc3545; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;'>Reset Password</a>
+                </div>
+                <p style='color: #666; font-size: 14px;'>If the button above doesn't work, copy and paste this link: <br/>{resetUrl}</p>";
+
+            await _emailSender.SendEmailAsync(user.Email, "Reset Your Password - Bookstore", GetEmailShell("Reset Your Password", content), cancellationToken);
 
             return ApiResponse.SuccessResponse("If the email exists, a password reset link will be sent.");
         }
@@ -169,8 +194,17 @@ public class AuthenticationService : IAuthenticationService
             var frontendOrigin = _emailOptions.Value?.ConfirmationUrlOrigin ?? string.Empty;
             var confirmPath = $"/api/email/confirm?userId={user.Id}&token={Uri.EscapeDataString(confirmationToken)}";
             var confirmUrl = string.IsNullOrEmpty(frontendOrigin) ? confirmPath : new Uri(new Uri(frontendOrigin), confirmPath).ToString();
-            var emailBody = $"<p>Hi {user.FullName},</p><p>Please confirm your email by clicking <a href=\"{confirmUrl}\">here</a>.</p>";
-            await _emailSender.SendEmailAsync(user.Email, "Please confirm your email", emailBody, cancellationToken);
+
+            var content = $@"
+                <p>Hi <strong>{user.FullName}</strong>,</p>
+                <p>Welcome to our community of book lovers! We're excited to have you on board.</p>
+                <p>To get started, please confirm your email address by clicking the button below:</p>
+                <div style='text-align: center; margin: 30px 0;'>
+                    <a href='{confirmUrl}' style='background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;'>Confirm Email Address</a>
+                </div>
+                <p style='color: #666; font-size: 14px;'>If the button doesn't work, copy and paste this link: <br/>{confirmUrl}</p>";
+
+            await _emailSender.SendEmailAsync(user.Email, "Confirm your email - Bookstore", GetEmailShell("Welcome to Bookstore!", content), cancellationToken);
 
             // Do not issue JWT until email is confirmed
             var response = new AuthResponseDto
@@ -215,8 +249,15 @@ public class AuthenticationService : IAuthenticationService
             var frontendOrigin = _emailOptions.Value?.ConfirmationUrlOrigin ?? string.Empty;
             var confirmPath = $"/api/email/confirm?userId={user.Id}&token={Uri.EscapeDataString(confirmationToken)}";
             var confirmUrl = string.IsNullOrEmpty(frontendOrigin) ? confirmPath : new Uri(new Uri(frontendOrigin), confirmPath).ToString();
-            var emailBody = $"<p>Hi {user.FullName},</p><p>Please confirm your email by clicking <a href=\"{confirmUrl}\">here</a>.</p>";
-            await _emailSender.SendEmailAsync(user.Email, "Please confirm your email", emailBody, cancellationToken);
+            var content = $@"
+                <p>Hi <strong>{user.FullName}</strong>,</p>
+                <p>You requested a new confirmation link. Please click the button below to verify your email address:</p>
+                <div style='text-align: center; margin: 30px 0;'>
+                    <a href='{confirmUrl}' style='background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;'>Confirm Email Address</a>
+                </div>
+                <p style='color: #666; font-size: 14px;'>If the button doesn't work, copy and paste this link: <br/>{confirmUrl}</p>";
+
+            await _emailSender.SendEmailAsync(user.Email, "Confirm your email - Bookstore", GetEmailShell("Email Confirmation", content), cancellationToken);
 
             return ApiResponse.SuccessResponse("Confirmation email resent");
         }
@@ -253,6 +294,17 @@ public class AuthenticationService : IAuthenticationService
 
             _unitOfWork.Users.Update(user);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Send Final Welcome Email
+            var welcomeContent = $@"
+                <p>Hi <strong>{user.FullName}</strong>,</p>
+                <p>Your email has been successfully confirmed. Welcome to <strong>Bookstore</strong>!</p>
+                <p>You now have full access to our collection. Feel free to browse books, add them to your cart, and start reading.</p>
+                <div style='text-align: center; margin: 30px 0;'>
+                    <a href='{_emailOptions.Value?.ConfirmationUrlOrigin}' style='background-color: #28a745; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;'>Start Browsing</a>
+                </div>";
+            
+            await _emailSender.SendEmailAsync(user.Email, "Account Activated - Welcome to Bookstore", GetEmailShell("Your Account is Ready!", welcomeContent), cancellationToken);
 
             return ApiResponse.SuccessResponse("Email confirmed successfully");
         }

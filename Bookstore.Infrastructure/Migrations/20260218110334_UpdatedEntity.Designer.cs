@@ -3,6 +3,7 @@ using System;
 using Bookstore.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Bookstore.Infrastructure.Migrations
 {
     [DbContext(typeof(BookStoreDbContext))]
-    partial class BookStoreDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260218110334_UpdatedEntity")]
+    partial class UpdatedEntity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -106,56 +109,6 @@ namespace Bookstore.Infrastructure.Migrations
                     b.HasIndex("CategoryId", "ISBN");
 
                     b.ToTable("Books", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("b1b1b1b1-b1b1-b1b1-b1b1-b1b1b1b1b1b1"),
-                            Author = "F. Scott Fitzgerald",
-                            CategoryId = new Guid("6e6f6a7b-8c9d-0e1f-2a3b-4c5d6e7f8a9b"),
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            CreatedBy = "Seed",
-                            Description = "A story of wealth, love, and the American Dream.",
-                            ISBN = "9780743273565",
-                            IsDeleted = false,
-                            Language = "English",
-                            Pages = 180,
-                            Title = "The Great Gatsby",
-                            TotalQuantity = 10,
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
-                        },
-                        new
-                        {
-                            Id = new Guid("b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2"),
-                            Author = "Robert C. Martin",
-                            CategoryId = new Guid("2d2d2d1d-2d2d-2d2d-2d2d-2d2d2d2d2d2d"),
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            CreatedBy = "Seed",
-                            Description = "A Handbook of Agile Software Craftsmanship.",
-                            ISBN = "9780132350884",
-                            IsDeleted = false,
-                            Language = "English",
-                            Pages = 464,
-                            Title = "Clean Code",
-                            TotalQuantity = 5,
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
-                        },
-                        new
-                        {
-                            Id = new Guid("b3b3b3b3-b3b3-b3b3-b3b3-b3b3b3b3b3b3"),
-                            Author = "Stephen Hawking",
-                            CategoryId = new Guid("3d3d3d1d-3d3d-3d3d-3d3d-3d3d3d3d3d3d"),
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            CreatedBy = "Seed",
-                            Description = "From the Big Bang to Black Holes.",
-                            ISBN = "9780553380163",
-                            IsDeleted = false,
-                            Language = "English",
-                            Pages = 212,
-                            Title = "A Brief History of Time",
-                            TotalQuantity = 8,
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
-                        });
                 });
 
             modelBuilder.Entity("Bookstore.Domain.Entities.Category", b =>
@@ -200,32 +153,6 @@ namespace Bookstore.Infrastructure.Migrations
                         .HasDatabaseName("IX_Categories_Name");
 
                     b.ToTable("Categories", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("6e6f6a7b-8c9d-0e1f-2a3b-4c5d6e7f8a9b"),
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            IsDeleted = false,
-                            Name = "Fiction",
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
-                        },
-                        new
-                        {
-                            Id = new Guid("2d2d2d1d-2d2d-2d2d-2d2d-2d2d2d2d2d2d"),
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            IsDeleted = false,
-                            Name = "Technology",
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
-                        },
-                        new
-                        {
-                            Id = new Guid("3d3d3d1d-3d3d-3d3d-3d3d-3d3d3d3d3d3d"),
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            IsDeleted = false,
-                            Name = "Science",
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
-                        });
                 });
 
             modelBuilder.Entity("Bookstore.Domain.Entities.Order", b =>
@@ -280,19 +207,6 @@ namespace Bookstore.Infrastructure.Migrations
                     b.HasIndex("UserId", "Status");
 
                     b.ToTable("Orders", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("e1e1e1e1-e1e1-e1e1-e1e1-e1e1e1e1e1e1"),
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            CreatedBy = "Seed",
-                            IdempotencyKey = "SEED-ORDER-001",
-                            IsDeleted = false,
-                            Status = 4,
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            UserId = new Guid("a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d")
-                        });
                 });
 
             modelBuilder.Entity("Bookstore.Domain.Entities.OrderItem", b =>
@@ -342,19 +256,6 @@ namespace Bookstore.Infrastructure.Migrations
                         .HasDatabaseName("IX_OrderItems_OrderId_BookId");
 
                     b.ToTable("OrderItems", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("f1f1f1f1-f1f1-f1f1-f1f1-f1f1f1f1f1f1"),
-                            BookId = new Guid("b1b1b1b1-b1b1-b1b1-b1b1-b1b1b1b1b1b1"),
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            CreatedBy = "Seed",
-                            IsDeleted = false,
-                            OrderId = new Guid("e1e1e1e1-e1e1-e1e1-e1e1-e1e1e1e1e1e1"),
-                            Quantity = 1,
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
-                        });
                 });
 
             modelBuilder.Entity("Bookstore.Domain.Entities.User", b =>
@@ -439,32 +340,6 @@ namespace Bookstore.Infrastructure.Migrations
                         .HasDatabaseName("IX_Users_Email");
 
                     b.ToTable("Users", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8a"),
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            Email = "admin@bookstore.com",
-                            EmailConfirmed = true,
-                            FullName = "System Admin",
-                            IsDeleted = false,
-                            PasswordHash = "$2a$11$8k7.Y8R3h2Bf8WvE1H6eNuI7F1Z1e1K1W1S1a1P1l1y1C1o1r1K1.",
-                            Role = "Admin",
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
-                        },
-                        new
-                        {
-                            Id = new Guid("a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"),
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            Email = "user@bookstore.com",
-                            EmailConfirmed = true,
-                            FullName = "John Doe",
-                            IsDeleted = false,
-                            PasswordHash = "$2a$11$8k7.Y8R3h2Bf8WvE1H6eNuI7F1Z1e1K1W1S1a1P1l1y1C1o1r1K1.",
-                            Role = "User",
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
-                        });
                 });
 
             modelBuilder.Entity("Bookstore.Domain.Entities.Book", b =>
@@ -497,26 +372,6 @@ namespace Bookstore.Infrastructure.Migrations
 
                             b1.WithOwner()
                                 .HasForeignKey("BookId");
-
-                            b1.HasData(
-                                new
-                                {
-                                    BookId = new Guid("b1b1b1b1-b1b1-b1b1-b1b1-b1b1b1b1b1b1"),
-                                    Amount = 15.99m,
-                                    Currency = "USD"
-                                },
-                                new
-                                {
-                                    BookId = new Guid("b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2"),
-                                    Amount = 45.50m,
-                                    Currency = "USD"
-                                },
-                                new
-                                {
-                                    BookId = new Guid("b3b3b3b3-b3b3-b3b3-b3b3-b3b3b3b3b3b3"),
-                                    Amount = 20.00m,
-                                    Currency = "USD"
-                                });
                         });
 
                     b.Navigation("Category");
@@ -555,14 +410,6 @@ namespace Bookstore.Infrastructure.Migrations
 
                             b1.WithOwner()
                                 .HasForeignKey("OrderId");
-
-                            b1.HasData(
-                                new
-                                {
-                                    OrderId = new Guid("e1e1e1e1-e1e1-e1e1-e1e1-e1e1e1e1e1e1"),
-                                    Amount = 15.99m,
-                                    Currency = "USD"
-                                });
                         });
 
                     b.Navigation("TotalAmount")
@@ -607,14 +454,6 @@ namespace Bookstore.Infrastructure.Migrations
 
                             b1.WithOwner()
                                 .HasForeignKey("OrderItemId");
-
-                            b1.HasData(
-                                new
-                                {
-                                    OrderItemId = new Guid("f1f1f1f1-f1f1-f1f1-f1f1-f1f1f1f1f1f1"),
-                                    Amount = 15.99m,
-                                    Currency = "USD"
-                                });
                         });
 
                     b.Navigation("Book");

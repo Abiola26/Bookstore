@@ -36,6 +36,9 @@ public class BookStoreDbContext : DbContext
             }
         }
 
+        // Seed initial data
+        modelBuilder.Seed();
+
         base.OnModelCreating(modelBuilder);
     }
 
