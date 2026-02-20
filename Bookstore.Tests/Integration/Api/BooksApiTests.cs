@@ -87,7 +87,7 @@ public class BooksApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
             Price = 29.99m,
             TotalQuantity = 50,
             CategoryId = categoryId,
-            ISBN = "1234567890123"
+            ISBN = "978" + DateTime.UtcNow.Ticks.ToString().Substring(DateTime.UtcNow.Ticks.ToString().Length - 10)
         };
 
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/books");

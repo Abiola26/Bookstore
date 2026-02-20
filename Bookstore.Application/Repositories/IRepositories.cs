@@ -52,6 +52,28 @@ public interface IOrderItemRepository : IGenericRepository<OrderItem>
     Task<ICollection<OrderItem>> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default);
 }
 
+public interface IReviewRepository : IGenericRepository<Review>
+{
+    Task<ICollection<Review>> GetByBookIdAsync(Guid bookId, CancellationToken cancellationToken = default);
+    Task<ICollection<Review>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<bool> HasUserReviewedBookAsync(Guid userId, Guid bookId, CancellationToken cancellationToken = default);
+    Task<decimal> GetAverageRatingAsync(Guid bookId, CancellationToken cancellationToken = default);
+}
+
+public interface IWishlistRepository : IGenericRepository<WishlistItem>
+{
+    Task<ICollection<WishlistItem>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<WishlistItem?> GetByUserAndBookAsync(Guid userId, Guid bookId, CancellationToken cancellationToken = default);
+    Task<bool> ExistsAsync(Guid userId, Guid bookId, CancellationToken cancellationToken = default);
+}
+
+public interface IShoppingCartRepository : IGenericRepository<ShoppingCart>
+{
+    Task<ShoppingCart?> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<ShoppingCart?> GetWithItemsAsync(Guid cartId, CancellationToken cancellationToken = default);
+    Task<ShoppingCart?> GetUserCartWithItemsAsync(Guid userId, CancellationToken cancellationToken = default);
+}
+
 public interface IUnitOfWork : IDisposable
 {
     IBookRepository Books { get; }
@@ -59,6 +81,9 @@ public interface IUnitOfWork : IDisposable
     IUserRepository Users { get; }
     IOrderRepository Orders { get; }
     IOrderItemRepository OrderItems { get; }
+    IReviewRepository Reviews { get; }
+    IWishlistRepository Wishlist { get; }
+    IShoppingCartRepository ShoppingCarts { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task BeginTransactionAsync(CancellationToken cancellationToken = default);

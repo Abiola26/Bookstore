@@ -19,9 +19,14 @@ public class Book : BaseEntity
     public string? Language { get; set; }
     public string? CoverImageUrl { get; set; }
     public int TotalQuantity { get; set; }
+    public decimal AverageRating { get; set; }
+    public int ReviewCount { get; set; }
 
     public Guid CategoryId { get; set; }
     public Category Category { get; set; } = null!;
+
+    private readonly List<Review> _reviews = new();
+    public IReadOnlyCollection<Review> Reviews => _reviews.AsReadOnly();
 
     public IReadOnlyCollection<OrderItem> OrderItems => _orderItems.AsReadOnly();
 

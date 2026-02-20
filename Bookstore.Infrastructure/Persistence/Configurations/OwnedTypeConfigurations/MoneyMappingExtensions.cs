@@ -9,7 +9,7 @@ namespace Bookstore.Infrastructure.Persistence.Configurations.OwnedTypeConfigura
 public static class MoneyMappingExtensions
 {
     // Reusable mapping for Money value object as an owned type
-    public static void OwnsMoney<TEntity>(this EntityTypeBuilder<TEntity> builder, Expression<Func<TEntity, Money>> navigation) where TEntity : class
+    public static void OwnsMoney<TEntity>(this EntityTypeBuilder<TEntity> builder, Expression<Func<TEntity, Money?>> navigation) where TEntity : class
     {
         builder.OwnsOne(navigation, m =>
         {

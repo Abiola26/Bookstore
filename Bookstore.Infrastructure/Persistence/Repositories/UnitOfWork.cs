@@ -12,6 +12,9 @@ public class UnitOfWork : IUnitOfWork
     private IUserRepository? _userRepository;
     private IOrderRepository? _orderRepository;
     private IOrderItemRepository? _orderItemRepository;
+    private IReviewRepository? _reviewRepository;
+    private IWishlistRepository? _wishlistRepository;
+    private IShoppingCartRepository? _shoppingCartRepository;
 
     public UnitOfWork(BookStoreDbContext context)
     {
@@ -23,6 +26,9 @@ public class UnitOfWork : IUnitOfWork
     public IUserRepository Users => _userRepository ??= new UserRepository(_context);
     public IOrderRepository Orders => _orderRepository ??= new OrderRepository(_context);
     public IOrderItemRepository OrderItems => _orderItemRepository ??= new OrderItemRepository(_context);
+    public IReviewRepository Reviews => _reviewRepository ??= new ReviewRepository(_context);
+    public IWishlistRepository Wishlist => _wishlistRepository ??= new WishlistRepository(_context);
+    public IShoppingCartRepository ShoppingCarts => _shoppingCartRepository ??= new ShoppingCartRepository(_context);
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

@@ -208,7 +208,10 @@ if (app.Environment.IsDevelopment())
 // Add Global Exception Middleware
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
-app.UseRateLimiter();
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    app.UseRateLimiter();
+}
 // Serve uploaded static files (cover images)
 app.UseStaticFiles();
 app.UseHttpsRedirection();

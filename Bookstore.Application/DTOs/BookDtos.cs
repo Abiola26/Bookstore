@@ -50,6 +50,8 @@ public class BookResponseDto
     public int TotalQuantity { get; set; }
     public Guid CategoryId { get; set; }
     public string CategoryName { get; set; } = string.Empty;
+    public decimal AverageRating { get; set; }
+    public int ReviewCount { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 }

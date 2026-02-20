@@ -75,7 +75,9 @@ public static class ModelBuilderExtensions
                 UpdatedAt = seedDate,
                 IsDeleted = false,
                 Language = "English",
-                CreatedBy = "Seed"
+                CreatedBy = "Seed",
+                AverageRating = 0m,
+                ReviewCount = 0
             },
             new
             {
@@ -91,7 +93,9 @@ public static class ModelBuilderExtensions
                 UpdatedAt = seedDate,
                 IsDeleted = false,
                 Language = "English",
-                CreatedBy = "Seed"
+                CreatedBy = "Seed",
+                AverageRating = 0m,
+                ReviewCount = 0
             },
             new
             {
@@ -107,7 +111,9 @@ public static class ModelBuilderExtensions
                 UpdatedAt = seedDate,
                 IsDeleted = false,
                 Language = "English",
-                CreatedBy = "Seed"
+                CreatedBy = "Seed",
+                AverageRating = 0m,
+                ReviewCount = 0
             }
         );
 

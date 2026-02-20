@@ -47,3 +47,29 @@ public interface IOrderService
     Task<ApiResponse<OrderResponseDto>> UpdateOrderStatusAsync(Guid orderId, OrderUpdateStatusDto dto, CancellationToken cancellationToken = default);
     Task<ApiResponse> CancelOrderAsync(Guid orderId, CancellationToken cancellationToken = default);
 }
+
+public interface IReviewService
+{
+    Task<ApiResponse<ReviewResponseDto>> AddReviewAsync(Guid bookId, Guid userId, ReviewCreateDto dto, CancellationToken cancellationToken = default);
+    Task<ApiResponse<ICollection<ReviewResponseDto>>> GetBookReviewsAsync(Guid bookId, CancellationToken cancellationToken = default);
+    Task<ApiResponse<BookReviewSummaryDto>> GetBookReviewSummaryAsync(Guid bookId, CancellationToken cancellationToken = default);
+    Task<ApiResponse<ReviewResponseDto>> UpdateReviewAsync(Guid reviewId, Guid userId, ReviewUpdateDto dto, CancellationToken cancellationToken = default);
+    Task<ApiResponse> DeleteReviewAsync(Guid reviewId, Guid userId, bool isAdmin = false, CancellationToken cancellationToken = default);
+}
+
+public interface IWishlistService
+{
+    Task<ApiResponse> AddToWishlistAsync(Guid userId, Guid bookId, CancellationToken cancellationToken = default);
+    Task<ApiResponse> RemoveFromWishlistAsync(Guid userId, Guid bookId, CancellationToken cancellationToken = default);
+    Task<ApiResponse<ICollection<BookResponseDto>>> GetUserWishlistAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<ApiResponse<bool>> IsInWishlistAsync(Guid userId, Guid bookId, CancellationToken cancellationToken = default);
+}
+
+public interface IShoppingCartService
+{
+    Task<ApiResponse<ShoppingCartResponseDto>> GetUserCartAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<ApiResponse<ShoppingCartResponseDto>> AddToCartAsync(Guid userId, AddToCartDto dto, CancellationToken cancellationToken = default);
+    Task<ApiResponse<ShoppingCartResponseDto>> UpdateCartItemAsync(Guid userId, Guid cartItemId, UpdateCartItemDto dto, CancellationToken cancellationToken = default);
+    Task<ApiResponse<ShoppingCartResponseDto>> RemoveFromCartAsync(Guid userId, Guid cartItemId, CancellationToken cancellationToken = default);
+    Task<ApiResponse<ShoppingCartResponseDto>> ClearCartAsync(Guid userId, CancellationToken cancellationToken = default);
+}

@@ -76,14 +76,14 @@ public class EmailFlowTests : IClassFixture<WebApplicationFactory<Program>>
         var tokenIndex = body.IndexOf(tokenMarker);
         tokenIndex.Should().BeGreaterThan(0);
         var tokenPart = body.Substring(tokenIndex + tokenMarker.Length);
-        var token = System.Net.WebUtility.UrlDecode(tokenPart.Split('"', '&', '>')[0]);
+        var token = System.Net.WebUtility.UrlDecode(tokenPart.Split('"', '\'', '&', '>')[0]);
 
         // Extract userId from email body
         var userIdMarker = "userId=";
         var uidIndex = body.IndexOf(userIdMarker);
         uidIndex.Should().BeGreaterThan(0);
         var uidPart = body.Substring(uidIndex + userIdMarker.Length);
-        var userIdStr = uidPart.Split('&', '"', '>')[0];
+        var userIdStr = uidPart.Split('&', '"', '\'', '>')[0];
         var userId = Guid.Parse(userIdStr);
 
         // Confirm email
@@ -102,7 +102,7 @@ public class EmailFlowTests : IClassFixture<WebApplicationFactory<Program>>
         var rTokenIndex = resetBody.IndexOf("token=");
         rTokenIndex.Should().BeGreaterThan(0);
         var rTokenPart = resetBody.Substring(rTokenIndex + "token=".Length);
-        var rToken = System.Net.WebUtility.UrlDecode(rTokenPart.Split('"', '&', '>')[0]);
+        var rToken = System.Net.WebUtility.UrlDecode(rTokenPart.Split('"', '\'', '&', '>')[0]);
 
         // Reset password
         var resetDto = new PasswordResetDto { UserId = userId, Token = rToken, NewPassword = "An0therStr0ng!" };

@@ -20,7 +20,9 @@ public sealed class User : BaseEntity
     public string PasswordHash { get; private set; } = string.Empty;
     public UserRole Role { get; set; } = UserRole.User;
 
+    private readonly List<WishlistItem> _wishlist = new();
     public IReadOnlyCollection<Order> Orders => _orders.AsReadOnly();
+    public IReadOnlyCollection<WishlistItem> Wishlist => _wishlist.AsReadOnly();
 
     public void AddOrder(Order order)
     {
