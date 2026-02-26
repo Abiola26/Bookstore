@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
+using Microsoft.Data.Sqlite;
 
 namespace Bookstore.Tests.Integration.Api;
 
@@ -39,11 +40,17 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
             // Since we removed everything starting with Microsoft.EntityFrameworkCore, 
             // we might have removed things we need? No, repositories are Bookstore.Infrastructure.
 
-            // Add DbContext using an in-memory database for testing.
+            // Add DbContext using SQLite in-memory for transaction support
+            var connection = new Microsoft.Data.Sqlite.SqliteConnection("DataSource=:memory:");
+            connection.Open();
+
             services.AddDbContext<BookStoreDbContext>(options =>
             {
-                options.UseInMemoryDatabase("InMemoryDbForTesting");
+                options.UseSqlite(connection);
             });
+
+            // Keep connection alive
+            services.AddSingleton<System.Data.Common.DbConnection>(connection);
 
             // Build the service provider.
             var sp = services.BuildServiceProvider();

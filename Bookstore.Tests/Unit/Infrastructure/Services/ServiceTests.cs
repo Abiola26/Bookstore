@@ -660,3 +660,414 @@ public class AuthenticationServiceTests
         _userRepositoryMock.Verify(r => r.Update(It.IsAny<Bookstore.Domain.Entities.User>()), Times.Once);
     }
 }
+
+// ══════════════════════════════════════════════════════════════════
+// BookService — mutation tests (Create, Update, Delete, ByCategory)
+// ══════════════════════════════════════════════════════════════════
+
+/// <summary>
+/// Additional unit tests for BookService — mutation and query methods
+/// </summary>
+public class BookServiceMutationTests
+{
+    private readonly Mock<IBookRepository> _bookRepositoryMock;
+    private readonly Mock<ICategoryRepository> _categoryRepositoryMock;
+    private readonly Mock<IUnitOfWork> _unitOfWorkMock;
+    private readonly Mock<ILogger<BookService>> _loggerMock;
+    private readonly BookService _service;
+
+    public BookServiceMutationTests()
+    {
+        _bookRepositoryMock = new Mock<IBookRepository>();
+        _categoryRepositoryMock = new Mock<ICategoryRepository>();
+        _unitOfWorkMock = new Mock<IUnitOfWork>();
+        _loggerMock = new Mock<ILogger<BookService>>();
+
+        _unitOfWorkMock.Setup(u => u.Books).Returns(_bookRepositoryMock.Object);
+        _unitOfWorkMock.Setup(u => u.Categories).Returns(_categoryRepositoryMock.Object);
+
+        _service = new BookService(_unitOfWorkMock.Object, _loggerMock.Object);
+    }
+
+    [Fact]
+    public async Task CreateBookAsync_WithValidData_ShouldReturn201()
+    {
+        // Arrange
+        var ct = CancellationToken.None;
+        var categoryId = Guid.NewGuid();
+        var category = new Bookstore.Tests.Builders.CategoryBuilder().WithName("Fiction").Build();
+        var dto = new BookCreateDto
+        {
+            Title = "New Book",
+            Description = "A great book",
+            Author = "Author Name",
+            ISBN = "978-3-16-148410-0",
+            Price = 19.99m,
+            Currency = "USD",
+            TotalQuantity = 20,
+            CategoryId = categoryId
+        };
+
+        _bookRepositoryMock.Setup(r => r.ISBNExistsAsync(dto.ISBN, null, ct)).ReturnsAsync(false);
+        _categoryRepositoryMock.Setup(r => r.GetByIdAsync(categoryId, ct)).ReturnsAsync(category);
+        _bookRepositoryMock.Setup(r => r.AddAsync(It.IsAny<Bookstore.Domain.Entities.Book>(), ct)).Returns(Task.CompletedTask);
+        _unitOfWorkMock.Setup(u => u.SaveChangesAsync(ct)).ReturnsAsync(1);
+
+        // Act
+        var result = await _service.CreateBookAsync(dto, ct);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.StatusCode.Should().Be(201);
+        result.Data!.Title.Should().Be(dto.Title);
+        _bookRepositoryMock.Verify(r => r.AddAsync(It.IsAny<Bookstore.Domain.Entities.Book>(), ct), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateBookAsync_WithDuplicateISBN_ShouldReturn409()
+    {
+        // Arrange
+        var ct = CancellationToken.None;
+        var dto = new BookCreateDto
+        {
+            Title = "Duplicate Book",
+            Description = "Description",
+            Author = "Author",
+            ISBN = "978-3-16-148410-0",
+            Price = 19.99m,
+            Currency = "USD",
+            TotalQuantity = 10,
+            CategoryId = Guid.NewGuid()
+        };
+
+        _bookRepositoryMock.Setup(r => r.ISBNExistsAsync(dto.ISBN, null, ct)).ReturnsAsync(true);
+
+        // Act
+        var result = await _service.CreateBookAsync(dto, ct);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.StatusCode.Should().Be(409);
+        result.Message.Should().Contain("ISBN already exists");
+    }
+
+    [Fact]
+    public async Task CreateBookAsync_WithNonexistentCategory_ShouldReturn404()
+    {
+        // Arrange
+        var ct = CancellationToken.None;
+        var dto = new BookCreateDto
+        {
+            Title = "Book",
+            Description = "Description",
+            Author = "Author",
+            ISBN = "978-3-16-148410-0",
+            Price = 19.99m,
+            Currency = "USD",
+            TotalQuantity = 10,
+            CategoryId = Guid.NewGuid()
+        };
+
+        _bookRepositoryMock.Setup(r => r.ISBNExistsAsync(dto.ISBN, null, ct)).ReturnsAsync(false);
+        _categoryRepositoryMock.Setup(r => r.GetByIdAsync(dto.CategoryId, ct)).ReturnsAsync((Bookstore.Domain.Entities.Category?)null);
+
+        // Act
+        var result = await _service.CreateBookAsync(dto, ct);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.StatusCode.Should().Be(404);
+        result.Message.Should().Contain("Category not found");
+    }
+
+    [Fact]
+    public async Task UpdateBookAsync_WithValidData_ShouldUpdateBook()
+    {
+        // Arrange
+        var ct = CancellationToken.None;
+        var book = new Bookstore.Tests.Builders.BookBuilder().WithTitle("Old Title").Build();
+        var dto = new BookUpdateDto { Title = "New Title" };
+
+        _bookRepositoryMock.Setup(r => r.GetByIdAsync(book.Id, ct)).ReturnsAsync(book);
+        _bookRepositoryMock.Setup(r => r.Update(It.IsAny<Bookstore.Domain.Entities.Book>()));
+        _unitOfWorkMock.Setup(u => u.SaveChangesAsync(ct)).ReturnsAsync(1);
+
+        // Act
+        var result = await _service.UpdateBookAsync(book.Id, dto, ct);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data!.Title.Should().Be("New Title");
+        _bookRepositoryMock.Verify(r => r.Update(It.IsAny<Bookstore.Domain.Entities.Book>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateBookAsync_WithNonexistentBook_ShouldReturn404()
+    {
+        // Arrange
+        var ct = CancellationToken.None;
+        var bookId = Guid.NewGuid();
+        var dto = new BookUpdateDto { Title = "Title" };
+
+        _bookRepositoryMock.Setup(r => r.GetByIdAsync(bookId, ct)).ReturnsAsync((Bookstore.Domain.Entities.Book?)null);
+
+        // Act
+        var result = await _service.UpdateBookAsync(bookId, dto, ct);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.StatusCode.Should().Be(404);
+        result.Message.Should().Contain("Book not found");
+    }
+
+    [Fact]
+    public async Task DeleteBookAsync_WithValidId_ShouldSoftDelete()
+    {
+        // Arrange
+        var ct = CancellationToken.None;
+        var book = new Bookstore.Tests.Builders.BookBuilder().Build();
+
+        _bookRepositoryMock.Setup(r => r.GetByIdAsync(book.Id, ct)).ReturnsAsync(book);
+        _bookRepositoryMock.Setup(r => r.Delete(book));
+        _unitOfWorkMock.Setup(u => u.SaveChangesAsync(ct)).ReturnsAsync(1);
+
+        // Act
+        var result = await _service.DeleteBookAsync(book.Id, ct);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        _bookRepositoryMock.Verify(r => r.Delete(book), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeleteBookAsync_WithNonexistentId_ShouldReturn404()
+    {
+        // Arrange
+        var ct = CancellationToken.None;
+        var bookId = Guid.NewGuid();
+
+        _bookRepositoryMock.Setup(r => r.GetByIdAsync(bookId, ct)).ReturnsAsync((Bookstore.Domain.Entities.Book?)null);
+
+        // Act
+        var result = await _service.DeleteBookAsync(bookId, ct);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.StatusCode.Should().Be(404);
+    }
+
+    [Fact]
+    public async Task GetBooksByCategoryAsync_ShouldReturnPaginatedBooks()
+    {
+        // Arrange
+        var ct = CancellationToken.None;
+        var categoryId = Guid.NewGuid();
+        var category = new Bookstore.Tests.Builders.CategoryBuilder().Build();
+        var books = new[]
+        {
+            new Bookstore.Tests.Builders.BookBuilder().WithTitle("Book A").Build(),
+            new Bookstore.Tests.Builders.BookBuilder().WithTitle("Book B").Build()
+        };
+        const int pageNumber = 1;
+        const int pageSize = 10;
+
+        _categoryRepositoryMock.Setup(r => r.GetByIdAsync(categoryId, ct)).ReturnsAsync(category);
+        _bookRepositoryMock.Setup(r => r.GetPaginatedByCategoryAsync(categoryId, pageNumber, pageSize, ct))
+            .ReturnsAsync(books);
+        _bookRepositoryMock.Setup(r => r.GetCategoryBookCountAsync(categoryId, ct)).ReturnsAsync(2);
+
+        // Act
+        var result = await _service.GetBooksByCategoryAsync(categoryId, pageNumber, pageSize, ct);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data!.Items.Should().HaveCount(2);
+        result.Data.TotalCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task GetBooksByCategoryAsync_WithNonexistentCategory_ShouldReturn404()
+    {
+        // Arrange
+        var ct = CancellationToken.None;
+        var categoryId = Guid.NewGuid();
+
+        _categoryRepositoryMock.Setup(r => r.GetByIdAsync(categoryId, ct))
+            .ReturnsAsync((Bookstore.Domain.Entities.Category?)null);
+
+        // Act
+        var result = await _service.GetBooksByCategoryAsync(categoryId, 1, 10, ct);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.StatusCode.Should().Be(404);
+        result.Message.Should().Contain("Category not found");
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// CategoryService — Create, Update, Delete tests
+// ══════════════════════════════════════════════════════════════════
+
+/// <summary>
+/// Additional unit tests for CategoryService — mutation methods
+/// </summary>
+public class CategoryServiceMutationTests
+{
+    private readonly Mock<ICategoryRepository> _categoryRepositoryMock;
+    private readonly Mock<IBookRepository> _bookRepositoryMock;
+    private readonly Mock<IUnitOfWork> _unitOfWorkMock;
+    private readonly Mock<ILogger<CategoryService>> _loggerMock;
+    private readonly CategoryService _service;
+
+    public CategoryServiceMutationTests()
+    {
+        _categoryRepositoryMock = new Mock<ICategoryRepository>();
+        _bookRepositoryMock = new Mock<IBookRepository>();
+        _unitOfWorkMock = new Mock<IUnitOfWork>();
+        _loggerMock = new Mock<ILogger<CategoryService>>();
+
+        _unitOfWorkMock.Setup(u => u.Categories).Returns(_categoryRepositoryMock.Object);
+        _unitOfWorkMock.Setup(u => u.Books).Returns(_bookRepositoryMock.Object);
+
+        _service = new CategoryService(_unitOfWorkMock.Object, _loggerMock.Object);
+    }
+
+    [Fact]
+    public async Task CreateCategoryAsync_WithValidData_ShouldReturn201()
+    {
+        // Arrange
+        var ct = CancellationToken.None;
+        var dto = new CategoryCreateDto { Name = "Mystery" };
+
+        _categoryRepositoryMock.Setup(r => r.NameExistsAsync(dto.Name, null, ct)).ReturnsAsync(false);
+        _categoryRepositoryMock.Setup(r => r.AddAsync(It.IsAny<Bookstore.Domain.Entities.Category>(), ct)).Returns(Task.CompletedTask);
+        _unitOfWorkMock.Setup(u => u.SaveChangesAsync(ct)).ReturnsAsync(1);
+
+        // Act
+        var result = await _service.CreateCategoryAsync(dto, ct);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.StatusCode.Should().Be(201);
+        result.Data!.Name.Should().Be("Mystery");
+        _categoryRepositoryMock.Verify(r => r.AddAsync(It.IsAny<Bookstore.Domain.Entities.Category>(), ct), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateCategoryAsync_WithDuplicateName_ShouldReturn409()
+    {
+        // Arrange
+        var ct = CancellationToken.None;
+        var dto = new CategoryCreateDto { Name = "Fiction" };
+
+        _categoryRepositoryMock.Setup(r => r.NameExistsAsync(dto.Name, null, ct)).ReturnsAsync(true);
+
+        // Act
+        var result = await _service.CreateCategoryAsync(dto, ct);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.StatusCode.Should().Be(409);
+        result.Message.Should().Contain("already exists");
+    }
+
+    [Fact]
+    public async Task UpdateCategoryAsync_WithValidData_ShouldUpdateName()
+    {
+        // Arrange
+        var ct = CancellationToken.None;
+        var category = new Bookstore.Tests.Builders.CategoryBuilder().WithName("Old Name").Build();
+        var dto = new CategoryUpdateDto { Name = "New Name" };
+
+        _categoryRepositoryMock.Setup(r => r.GetByIdAsync(category.Id, ct)).ReturnsAsync(category);
+        _categoryRepositoryMock.Setup(r => r.NameExistsAsync(dto.Name, category.Id, ct)).ReturnsAsync(false);
+        _categoryRepositoryMock.Setup(r => r.Update(It.IsAny<Bookstore.Domain.Entities.Category>()));
+        _unitOfWorkMock.Setup(u => u.SaveChangesAsync(ct)).ReturnsAsync(1);
+        _bookRepositoryMock.Setup(r => r.GetCategoryBookCountAsync(category.Id, ct)).ReturnsAsync(0);
+
+        // Act
+        var result = await _service.UpdateCategoryAsync(category.Id, dto, ct);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data!.Name.Should().Be("New Name");
+        _categoryRepositoryMock.Verify(r => r.Update(It.IsAny<Bookstore.Domain.Entities.Category>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateCategoryAsync_WithNonexistentCategory_ShouldReturn404()
+    {
+        // Arrange
+        var ct = CancellationToken.None;
+        var categoryId = Guid.NewGuid();
+        var dto = new CategoryUpdateDto { Name = "New Name" };
+
+        _categoryRepositoryMock.Setup(r => r.GetByIdAsync(categoryId, ct))
+            .ReturnsAsync((Bookstore.Domain.Entities.Category?)null);
+
+        // Act
+        var result = await _service.UpdateCategoryAsync(categoryId, dto, ct);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.StatusCode.Should().Be(404);
+    }
+
+    [Fact]
+    public async Task DeleteCategoryAsync_WithNoBooks_ShouldDeleteSuccessfully()
+    {
+        // Arrange
+        var ct = CancellationToken.None;
+        var category = new Bookstore.Tests.Builders.CategoryBuilder().WithName("Empty Category").Build();
+
+        _categoryRepositoryMock.Setup(r => r.GetByIdAsync(category.Id, ct)).ReturnsAsync(category);
+        _bookRepositoryMock.Setup(r => r.GetCategoryBookCountAsync(category.Id, ct)).ReturnsAsync(0);
+        _categoryRepositoryMock.Setup(r => r.Delete(category));
+        _unitOfWorkMock.Setup(u => u.SaveChangesAsync(ct)).ReturnsAsync(1);
+
+        // Act
+        var result = await _service.DeleteCategoryAsync(category.Id, ct);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        _categoryRepositoryMock.Verify(r => r.Delete(category), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeleteCategoryAsync_WithBooks_ShouldReturn400()
+    {
+        // Arrange
+        var ct = CancellationToken.None;
+        var category = new Bookstore.Tests.Builders.CategoryBuilder().WithName("Category With Books").Build();
+
+        _categoryRepositoryMock.Setup(r => r.GetByIdAsync(category.Id, ct)).ReturnsAsync(category);
+        _bookRepositoryMock.Setup(r => r.GetCategoryBookCountAsync(category.Id, ct)).ReturnsAsync(5);
+
+        // Act
+        var result = await _service.DeleteCategoryAsync(category.Id, ct);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.StatusCode.Should().Be(400);
+        result.Message.Should().Contain("Cannot delete category with books");
+    }
+
+    [Fact]
+    public async Task DeleteCategoryAsync_WithNonexistentCategory_ShouldReturn404()
+    {
+        // Arrange
+        var ct = CancellationToken.None;
+        var categoryId = Guid.NewGuid();
+
+        _categoryRepositoryMock.Setup(r => r.GetByIdAsync(categoryId, ct))
+            .ReturnsAsync((Bookstore.Domain.Entities.Category?)null);
+
+        // Act
+        var result = await _service.DeleteCategoryAsync(categoryId, ct);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.StatusCode.Should().Be(404);
+    }
+}
