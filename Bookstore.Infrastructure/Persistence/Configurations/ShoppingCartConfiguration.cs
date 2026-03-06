@@ -38,7 +38,7 @@ public class ShoppingCartConfiguration : IEntityTypeConfiguration<ShoppingCart>
 
             priceBuilder.Property(m => m.Currency)
                 .HasColumnName("TotalPrice_Currency")
-                .HasMaxLength(3)
+                .HasMaxLength(10)
                 .IsRequired();
         });
 
@@ -99,7 +99,7 @@ public class ShoppingCartItemConfiguration : IEntityTypeConfiguration<ShoppingCa
 
             priceBuilder.Property(m => m.Currency)
                 .HasColumnName("UnitPrice_Currency")
-                .HasMaxLength(3)
+                .HasMaxLength(10)
                 .IsRequired();
         });
 

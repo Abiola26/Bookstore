@@ -1,4 +1,5 @@
 using Bookstore.Application.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 namespace Bookstore.Infrastructure.Persistence.Repositories;
 
@@ -82,6 +83,27 @@ public class UnitOfWork : IUnitOfWork
                 _transaction = null;
             }
         }
+    }
+
+    public async Task<T> ExecuteInTransactionAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken = default)
+    {
+        var strategy = _context.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                var result = await action(cancellationToken);
+                await _context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                return result;
+            }
+            catch
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw;
+            }
+        });
     }
 
     public void Dispose()

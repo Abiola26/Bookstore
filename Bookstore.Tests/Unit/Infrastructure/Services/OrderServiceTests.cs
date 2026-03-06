@@ -1,11 +1,9 @@
 using Bookstore.Application.DTOs;
-using Bookstore.Application.Common;
 using Bookstore.Application.Repositories;
 using Bookstore.Infrastructure.Services;
 using Bookstore.Tests.Builders;
 using FluentAssertions;
 using Moq;
-using Xunit;
 using Microsoft.Extensions.Logging;
 using Bookstore.Domain.Entities;
 using Bookstore.Domain.Enum;
@@ -44,7 +42,7 @@ public class OrderServiceTests
         var userId = Guid.NewGuid();
         var user = new User("John Doe", "john@example.com", "hash", UserRole.User);
         user.EmailConfirmed = false;
-        
+
         var dto = new OrderCreateDto
         {
             Items = new List<OrderItemCreateDto> { new OrderItemCreateDto { BookId = Guid.NewGuid(), Quantity = 1 } }
@@ -70,7 +68,7 @@ public class OrderServiceTests
         var idempotencyKey = "key123";
         var existingOrder = new Order(userId) { IdempotencyKey = idempotencyKey };
         existingOrder.TotalAmount = new Money(100, "USD");
-        
+
         var dto = new OrderCreateDto
         {
             Items = new List<OrderItemCreateDto> { new OrderItemCreateDto { BookId = Guid.NewGuid(), Quantity = 1 } }
@@ -96,7 +94,7 @@ public class OrderServiceTests
         var differentUserId = Guid.NewGuid();
         var idempotencyKey = "key123";
         var existingOrder = new Order(differentUserId) { IdempotencyKey = idempotencyKey };
-        
+
         var dto = new OrderCreateDto
         {
             Items = new List<OrderItemCreateDto> { new OrderItemCreateDto { BookId = Guid.NewGuid(), Quantity = 1 } }
@@ -121,12 +119,12 @@ public class OrderServiceTests
         var userId = Guid.NewGuid();
         var user = new User("John Doe", "john@example.com", "hash", UserRole.User) { EmailConfirmed = true };
         var book = new BookBuilder().Build();
-        
+
         var dto = new OrderCreateDto
         {
-            Items = new List<OrderItemCreateDto> 
-            { 
-                new OrderItemCreateDto { BookId = book.Id, Quantity = 1 } 
+            Items = new List<OrderItemCreateDto>
+            {
+                new OrderItemCreateDto { BookId = book.Id, Quantity = 1 }
             }
         };
 
@@ -145,7 +143,7 @@ public class OrderServiceTests
         _unitOfWorkMock.Setup(u => u.OrderItems).Returns(new Mock<IOrderItemRepository>().Object);
 
         _orderRepositoryMock.Setup(r => r.GetWithItemsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Guid id, CancellationToken ct) => 
+            .ReturnsAsync((Guid id, CancellationToken ct) =>
             {
                 var o = new Order(userId);
                 // We could populate it more if needed for assertions

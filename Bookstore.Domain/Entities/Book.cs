@@ -1,6 +1,4 @@
 using Bookstore.Domain.ValueObjects;
-using System;
-using System.Collections.Generic;
 
 namespace Bookstore.Domain.Entities;
 
@@ -12,7 +10,7 @@ public class Book : BaseEntity
     public string Description { get; set; } = string.Empty;
     public ISBN ISBN { get; set; } = null!;
     public string? Publisher { get; set; }
-    public DateTime? PublicationDate { get; set; }
+    public DateTimeOffset? PublicationDate { get; set; }
     public Money Price { get; set; } = null!;
     public string Author { get; set; } = string.Empty;
     public int Pages { get; set; }

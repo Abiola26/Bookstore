@@ -1,9 +1,7 @@
-using Bookstore.Infrastructure.Persistence;
 using Bookstore.Infrastructure.Persistence.Repositories;
 using Bookstore.Tests.Builders;
 using Bookstore.Tests.Fixtures;
 using FluentAssertions;
-using Xunit;
 
 namespace Bookstore.Tests.Integration.Workflows;
 

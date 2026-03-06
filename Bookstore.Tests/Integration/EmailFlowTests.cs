@@ -7,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Bookstore.Infrastructure.Persistence;
-using Xunit;
 
 namespace Bookstore.Tests.Integration;
 
@@ -113,7 +112,7 @@ public class EmailFlowTests : IClassFixture<WebApplicationFactory<Program>>
         var loginDto = new UserLoginDto { Email = registerDto.Email, Password = resetDto.NewPassword };
         var loginResp = await client.PostAsJsonAsync("/api/auth/login", loginDto);
         loginResp.EnsureSuccessStatusCode();
-        var loginApi = await loginResp.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<AuthResponseDto>>();
+        var loginApi = await loginResp.Content.ReadFromJsonAsync<Application.Common.ApiResponse<AuthResponseDto>>();
         loginApi.Should().NotBeNull();
         loginApi!.Success.Should().BeTrue();
     }

@@ -1,18 +1,13 @@
 using Bookstore.Application.DTOs;
 using Bookstore.Domain.Entities;
 using Bookstore.Domain.Enum;
-using Bookstore.Infrastructure;
 using Bookstore.Infrastructure.Persistence;
-using Bookstore.Tests.Integration.Api;
 using FluentAssertions;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Newtonsoft.Json;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using Xunit;
 
 namespace Bookstore.Tests.Integration.Api;
 
@@ -45,7 +40,7 @@ public class ShoppingCartApiTests : IClassFixture<CustomWebApplicationFactory<Pr
 
         var loginDto = new UserLoginDto { Email = email, Password = "Password123!" };
         var response = await _client.PostAsJsonAsync("/api/auth/login", loginDto);
-        var content = await response.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<AuthResponseDto>>();
+        var content = await response.Content.ReadFromJsonAsync<Application.Common.ApiResponse<AuthResponseDto>>();
         return content!.Data!.Token;
     }
 
@@ -57,16 +52,16 @@ public class ShoppingCartApiTests : IClassFixture<CustomWebApplicationFactory<Pr
         var category = await context.Categories.FirstOrDefaultAsync();
         if (category == null)
         {
-            category = new Category("Cart Category");
+            category = new Category($"Cart Category {Guid.NewGuid()}");
             context.Categories.Add(category);
             await context.SaveChangesAsync();
         }
 
         var book = new Book(
-            "Cart Book",
+            $"Cart Book {Guid.NewGuid()}",
             "Description",
-            new Bookstore.Domain.ValueObjects.ISBN($"978-0-{Guid.NewGuid().ToString().Substring(0, 8)}"),
-            new Bookstore.Domain.ValueObjects.Money(15.00m, "USD"),
+            new Domain.ValueObjects.ISBN("978-0-" + Math.Abs(Guid.NewGuid().GetHashCode() % 1000000).ToString("D6")),
+            new Domain.ValueObjects.Money(15.00m, "USD"),
             "Author",
             50,
             category.Id
@@ -89,7 +84,7 @@ public class ShoppingCartApiTests : IClassFixture<CustomWebApplicationFactory<Pr
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<ShoppingCartResponseDto>>();
+        var content = await response.Content.ReadFromJsonAsync<Application.Common.ApiResponse<ShoppingCartResponseDto>>();
         content.Should().NotBeNull();
         content!.Data!.Items.Should().BeEmpty();
     }
@@ -109,7 +104,7 @@ public class ShoppingCartApiTests : IClassFixture<CustomWebApplicationFactory<Pr
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<ShoppingCartResponseDto>>();
+        var content = await response.Content.ReadFromJsonAsync<Application.Common.ApiResponse<ShoppingCartResponseDto>>();
         content!.Data!.Items.Should().ContainSingle(i => i.BookId == bookId && i.Quantity == 2);
     }
 
@@ -120,7 +115,7 @@ public class ShoppingCartApiTests : IClassFixture<CustomWebApplicationFactory<Pr
         var token = await GetTokenAsync($"cart-user-{Guid.NewGuid()}@example.com");
         var bookId = await SeedBookAsync();
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        
+
         await _client.PostAsJsonAsync("/api/shopping-cart/items", new AddToCartDto { BookId = bookId, Quantity = 1 });
         var updateDto = new UpdateCartItemDto { Quantity = 5 };
 
@@ -129,7 +124,7 @@ public class ShoppingCartApiTests : IClassFixture<CustomWebApplicationFactory<Pr
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<ShoppingCartResponseDto>>();
+        var content = await response.Content.ReadFromJsonAsync<Application.Common.ApiResponse<ShoppingCartResponseDto>>();
         content!.Data!.Items.Should().ContainSingle(i => i.BookId == bookId && i.Quantity == 5);
     }
 
@@ -140,7 +135,7 @@ public class ShoppingCartApiTests : IClassFixture<CustomWebApplicationFactory<Pr
         var token = await GetTokenAsync($"cart-user-{Guid.NewGuid()}@example.com");
         var bookId = await SeedBookAsync();
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        
+
         await _client.PostAsJsonAsync("/api/shopping-cart/items", new AddToCartDto { BookId = bookId, Quantity = 1 });
 
         // Act
@@ -148,7 +143,7 @@ public class ShoppingCartApiTests : IClassFixture<CustomWebApplicationFactory<Pr
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<ShoppingCartResponseDto>>();
+        var content = await response.Content.ReadFromJsonAsync<Application.Common.ApiResponse<ShoppingCartResponseDto>>();
         content!.Data!.Items.Should().NotContain(i => i.BookId == bookId);
     }
 
@@ -159,7 +154,7 @@ public class ShoppingCartApiTests : IClassFixture<CustomWebApplicationFactory<Pr
         var token = await GetTokenAsync($"cart-user-{Guid.NewGuid()}@example.com");
         var bookId = await SeedBookAsync();
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        
+
         await _client.PostAsJsonAsync("/api/shopping-cart/items", new AddToCartDto { BookId = bookId, Quantity = 1 });
 
         // Act
@@ -167,7 +162,7 @@ public class ShoppingCartApiTests : IClassFixture<CustomWebApplicationFactory<Pr
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<ShoppingCartResponseDto>>();
+        var content = await response.Content.ReadFromJsonAsync<Application.Common.ApiResponse<ShoppingCartResponseDto>>();
         content!.Data!.Items.Should().BeEmpty();
     }
 }

@@ -8,7 +8,6 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Net.Http.Json;
-using Xunit;
 
 namespace Bookstore.Tests.Integration.Api;
 
@@ -50,15 +49,15 @@ public class ReviewsApiTests : IClassFixture<CustomWebApplicationFactory<Program
     {
         using var scope = _factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<BookStoreDbContext>();
-        
+
         var category = new Category("Test Category " + Guid.NewGuid());
         context.Categories.Add(category);
-        
-        var isbn = new ISBN("1234567890123");
+
+        var isbn = new ISBN("978-0-" + Math.Abs(Guid.NewGuid().GetHashCode() % 1000000).ToString("D6"));
         var price = new Money(19.99m, "USD");
         var book = new Book("Test Book " + Guid.NewGuid(), "Desc", isbn, price, "Author", 10, category.Id);
         context.Books.Add(book);
-        
+
         await context.SaveChangesAsync();
         return book.Id;
     }
@@ -128,7 +127,7 @@ public class ReviewsApiTests : IClassFixture<CustomWebApplicationFactory<Program
         var (token, _) = await CreateUserAndGetTokenAsync();
         var bookId = await CreateTestBookAsync();
         _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        
+
         var createResp = await _client.PostAsJsonAsync($"/api/books/{bookId}/reviews", new ReviewCreateDto { Rating = 3, Comment = "Original" });
         var createdReview = (await createResp.Content.ReadFromJsonAsync<ApiResponse<ReviewResponseDto>>())!.Data!;
 
@@ -151,7 +150,7 @@ public class ReviewsApiTests : IClassFixture<CustomWebApplicationFactory<Program
         var (token, _) = await CreateUserAndGetTokenAsync();
         var bookId = await CreateTestBookAsync();
         _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        
+
         var createResp = await _client.PostAsJsonAsync($"/api/books/{bookId}/reviews", new ReviewCreateDto { Rating = 3, Comment = "To delete" });
         var createdReview = (await createResp.Content.ReadFromJsonAsync<ApiResponse<ReviewResponseDto>>())!.Data!;
 
@@ -169,7 +168,7 @@ public class ReviewsApiTests : IClassFixture<CustomWebApplicationFactory<Program
         var (userToken, _) = await CreateUserAndGetTokenAsync(UserRole.User);
         var (adminToken, _) = await CreateUserAndGetTokenAsync(UserRole.Admin);
         var bookId = await CreateTestBookAsync();
-        
+
         _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", userToken);
         var createResp = await _client.PostAsJsonAsync($"/api/books/{bookId}/reviews", new ReviewCreateDto { Rating = 3, Comment = "User review" });
         var createdReview = (await createResp.Content.ReadFromJsonAsync<ApiResponse<ReviewResponseDto>>())!.Data!;

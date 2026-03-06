@@ -5,10 +5,8 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
 using Microsoft.OpenApi.Models;
-using Microsoft.Extensions.Options;
 using Bookstore.Application.Settings;
 using System.Threading.RateLimiting;
-using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.EntityFrameworkCore;  // For migrations
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,9 +18,9 @@ var jwtIssuer = builder.Configuration["JWT:Issuer"];
 var jwtAudience = builder.Configuration["JWT:Audience"];
 
 // Bind strongly-typed settings
-builder.Services.Configure<Bookstore.Application.Settings.JwtSettings>(builder.Configuration.GetSection("JWT"));
-builder.Services.Configure<Bookstore.Application.Settings.EmailSettings>(builder.Configuration.GetSection("Email"));
-builder.Services.Configure<Bookstore.Application.Settings.FileSettings>(builder.Configuration.GetSection("FileSettings"));
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JWT"));
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
+builder.Services.Configure<FileSettings>(builder.Configuration.GetSection("FileSettings"));
 
 // Validate options and fail fast for critical settings
 builder.Services.AddOptions<JwtSettings>()
@@ -39,7 +37,7 @@ builder.Services.AddOptions<EmailSettings>()
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = 429;
-    
+
     // Email endpoints: Very restrictive
     options.AddPolicy("emailPolicy", context =>
         RateLimitPartition.GetFixedWindowLimiter(partitionKey: "emailPolicy", factory: _ => new FixedWindowRateLimiterOptions
@@ -49,7 +47,7 @@ builder.Services.AddRateLimiter(options =>
             QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
             QueueLimit = 2
         }));
-    
+
     // Authentication endpoints: Prevent brute force
     options.AddPolicy("authPolicy", context =>
         RateLimitPartition.GetFixedWindowLimiter(
@@ -61,11 +59,11 @@ builder.Services.AddRateLimiter(options =>
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                 QueueLimit = 0
             }));
-    
+
     // Order endpoints: Prevent spam orders
     options.AddPolicy("orderPolicy", context =>
         RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? 
+            partitionKey: context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ??
                           context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             factory: _ => new FixedWindowRateLimiterOptions
             {
@@ -148,9 +146,9 @@ builder.Services.AddAuthorization();
 // Add CORS with environment-specific configuration (SECURITY FIX)
 builder.Services.AddCors(options =>
 {
-    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() 
+    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
         ?? Array.Empty<string>();
-    
+
     if (builder.Environment.IsDevelopment() && allowedOrigins.Length == 0)
     {
         // Development: Allow localhost
@@ -214,7 +212,10 @@ if (!app.Environment.IsEnvironment("Testing"))
 }
 // Serve uploaded static files (cover images)
 app.UseStaticFiles();
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.UseCors("AppCorsPolicy");
 app.UseResponseCaching();
 app.UseAuthentication();
@@ -230,7 +231,7 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<Bookstore.Infrastructure.Persistence.BookStoreDbContext>();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    
+
     try
     {
         if (app.Environment.IsDevelopment())

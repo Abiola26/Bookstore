@@ -79,8 +79,8 @@ public class UserRegisterDtoValidator
         }
         else
         {
-            if (dto.Password.Length < 12)
-                errors.Add("Password must be at least 12 characters long.");
+            if (dto.Password.Length < 6)
+                errors.Add("Password must be at least 6 characters long.");
 
             if (!dto.Password.Any(char.IsUpper))
                 errors.Add("Password must contain at least one uppercase letter.");

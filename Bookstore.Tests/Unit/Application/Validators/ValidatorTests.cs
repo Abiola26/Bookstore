@@ -1,6 +1,5 @@
 using Bookstore.Application.DTOs;
 using FluentAssertions;
-using Xunit;
 
 namespace Bookstore.Tests.Unit.Application.Validators;
 

@@ -8,7 +8,6 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Net.Http.Json;
-using Xunit;
 
 namespace Bookstore.Tests.Integration.Api;
 
@@ -50,15 +49,15 @@ public class WishlistApiTests : IClassFixture<CustomWebApplicationFactory<Progra
     {
         using var scope = _factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<BookStoreDbContext>();
-        
+
         var category = new Category("Test Category " + Guid.NewGuid());
         context.Categories.Add(category);
-        
-        var isbn = new ISBN("978" + DateTime.UtcNow.Ticks.ToString().Substring(DateTime.UtcNow.Ticks.ToString().Length - 10));
+
+        var isbn = new ISBN("978-0-" + Math.Abs(Guid.NewGuid().GetHashCode() % 1000000).ToString("D6"));
         var price = new Money(19.99m, "USD");
         var book = new Book("Test Book " + Guid.NewGuid(), "Desc", isbn, price, "Author", 10, category.Id);
         context.Books.Add(book);
-        
+
         await context.SaveChangesAsync();
         return book.Id;
     }
@@ -133,7 +132,7 @@ public class WishlistApiTests : IClassFixture<CustomWebApplicationFactory<Progra
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         // Verify it's gone
         var checkResponse = await _client.GetAsync("/api/wishlist");
         var content = await checkResponse.Content.ReadFromJsonAsync<ApiResponse<ICollection<BookResponseDto>>>();

@@ -35,9 +35,9 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     [AllowAnonymous]
     [EnableRateLimiting("authPolicy")]  // Prevent brute force
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse<AuthResponseDto>), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(Application.Common.ApiResponse<AuthResponseDto>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(Application.Common.ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(Application.Common.ApiResponse), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Register([FromBody] UserRegisterDto dto, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Registration request received for a new user");
@@ -57,9 +57,9 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     [AllowAnonymous]
     [EnableRateLimiting("authPolicy")]  // Prevent brute force
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse<AuthResponseDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(Application.Common.ApiResponse<AuthResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(Application.Common.ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(Application.Common.ApiResponse), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Login([FromBody] UserLoginDto dto, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Login request received");
@@ -77,9 +77,9 @@ public class AuthController : ControllerBase
     /// <response code="404">User not found</response>
     [HttpGet("me")]
     [Authorize]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse<UserResponseDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(Application.Common.ApiResponse<UserResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(Application.Common.ApiResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(Application.Common.ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetCurrentUser(CancellationToken cancellationToken)
     {
         var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;

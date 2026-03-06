@@ -1,5 +1,3 @@
-using Bookstore.Application.Common;
-using Bookstore.Application.DTOs;
 using Bookstore.Application.Repositories;
 using Bookstore.Domain.Entities;
 using Bookstore.Infrastructure.Services;
@@ -7,7 +5,6 @@ using Bookstore.Tests.Builders;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace Bookstore.Tests.Unit.Infrastructure.Services;
 

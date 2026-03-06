@@ -1,6 +1,5 @@
 using Bookstore.Application.Repositories;
 using Bookstore.Domain.Entities;
-using Bookstore.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bookstore.Infrastructure.Persistence.Repositories;

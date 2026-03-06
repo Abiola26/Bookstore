@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using Bookstore.Domain.Enum;
 using Bookstore.Domain.ValueObjects;
 
@@ -28,7 +26,17 @@ public class Order : BaseEntity
 
     public void AddItem(OrderItem item)
     {
+        if (item is null) throw new ArgumentNullException(nameof(item));
+        
         _orderItems.Add(item);
-        TotalAmount = new Money(TotalAmount.Amount + (item.UnitPrice * item.Quantity).Amount, TotalAmount.Currency);
+        
+        if (_orderItems.Count == 1)
+        {
+            TotalAmount = item.UnitPrice * item.Quantity;
+        }
+        else
+        {
+            TotalAmount = TotalAmount + (item.UnitPrice * item.Quantity);
+        }
     }
 }

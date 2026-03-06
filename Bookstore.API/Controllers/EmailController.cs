@@ -1,6 +1,5 @@
 using Bookstore.Application.Services;
 using Bookstore.Application.DTOs;
-using Bookstore.Application.Common;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 
@@ -19,11 +18,36 @@ public class EmailController : ControllerBase
         _authService = authService;
     }
 
+    /// <summary>
+    /// Confirms email via browser link from email. Redirects to frontend when done.
+    /// Used when the confirmation link in the email points directly to the backend.
+    /// </summary>
     [HttpGet("confirm")]
     public async Task<IActionResult> ConfirmEmail([FromQuery] Guid userId, [FromQuery] string token)
     {
         var response = await _authService.ConfirmEmailAsync(userId, token);
-        return StatusCode(response.StatusCode ?? 400, response);
+        
+        var frontendUrl = _authService.GetFrontendOrigin();
+        if (response.Success)
+        {
+            return Redirect($"{frontendUrl}/auth/login?confirmed=true");
+        }
+        
+        return Redirect($"{frontendUrl}/auth/login?error={Uri.EscapeDataString(response.Message)}");
+    }
+
+    /// <summary>
+    /// Confirms email and returns a JSON response (no redirect).
+    /// Used by the frontend /verify-email page to verify tokens without cross-origin redirect issues.
+    /// </summary>
+    [HttpGet("confirm-json")]
+    public async Task<IActionResult> ConfirmEmailJson([FromQuery] Guid userId, [FromQuery] string token)
+    {
+        if (userId == Guid.Empty || string.IsNullOrWhiteSpace(token))
+            return BadRequest(Bookstore.Application.Common.ApiResponse.ErrorResponse("Invalid request: userId and token are required", null, 400));
+
+        var response = await _authService.ConfirmEmailAsync(userId, token);
+        return StatusCode(response.StatusCode ?? (response.Success ? 200 : 400), response);
     }
 
     [HttpPost("resend")]

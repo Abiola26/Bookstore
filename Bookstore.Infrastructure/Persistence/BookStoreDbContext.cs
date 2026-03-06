@@ -1,7 +1,5 @@
 using Bookstore.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
-using Bookstore.Domain.ValueObjects;
-using System.Linq;
 
 namespace Bookstore.Infrastructure.Persistence;
 
@@ -23,17 +21,10 @@ public class BookStoreDbContext : DbContext
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(BookStoreDbContext).Assembly);
 
-        // Register owned types or shared configurations if needed
-        // Ensure Money owned type is treated consistently where used
-        modelBuilder.Model.GetEntityTypes()
-            .SelectMany(t => t.GetProperties())
-            .Where(p => p.ClrType == typeof(Money))
-            .ToList();
-
         // Apply global query filter for soft-delete
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
-            if (typeof(Bookstore.Domain.Entities.BaseEntity).IsAssignableFrom(entityType.ClrType))
+            if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
             {
                 var method = typeof(BookStoreDbContext).GetMethod(nameof(ApplyIsDeletedQueryFilter), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!.MakeGenericMethod(entityType.ClrType);
                 method.Invoke(null, new object[] { modelBuilder });
@@ -46,7 +37,27 @@ public class BookStoreDbContext : DbContext
         base.OnModelCreating(modelBuilder);
     }
 
-    private static void ApplyIsDeletedQueryFilter<TEntity>(ModelBuilder builder) where TEntity : Bookstore.Domain.Entities.BaseEntity
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        var entries = ChangeTracker
+            .Entries()
+            .Where(e => e.Entity is BaseEntity && (e.State == EntityState.Added || e.State == EntityState.Modified));
+
+        foreach (var entityEntry in entries)
+        {
+            var entity = (BaseEntity)entityEntry.Entity;
+            entity.UpdatedAt = DateTimeOffset.UtcNow;
+
+            if (entityEntry.State == EntityState.Added)
+            {
+                entity.CreatedAt = DateTimeOffset.UtcNow;
+            }
+        }
+
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    private static void ApplyIsDeletedQueryFilter<TEntity>(ModelBuilder builder) where TEntity : BaseEntity
     {
         builder.Entity<TEntity>().HasQueryFilter(e => !e.IsDeleted);
     }

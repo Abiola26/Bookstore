@@ -1,12 +1,9 @@
 using Bookstore.Application.DTOs;
-using Bookstore.Application.Common;
 using Bookstore.Application.Repositories;
 using Bookstore.Infrastructure.Services;
 using Bookstore.Tests.Builders;
 using FluentAssertions;
 using Moq;
-using Xunit;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using Bookstore.Application.Settings;
 using Bookstore.Application.Services;
@@ -695,7 +692,7 @@ public class BookServiceMutationTests
         // Arrange
         var ct = CancellationToken.None;
         var categoryId = Guid.NewGuid();
-        var category = new Bookstore.Tests.Builders.CategoryBuilder().WithName("Fiction").Build();
+        var category = new CategoryBuilder().WithName("Fiction").Build();
         var dto = new BookCreateDto
         {
             Title = "New Book",
@@ -785,7 +782,7 @@ public class BookServiceMutationTests
     {
         // Arrange
         var ct = CancellationToken.None;
-        var book = new Bookstore.Tests.Builders.BookBuilder().WithTitle("Old Title").Build();
+        var book = new BookBuilder().WithTitle("Old Title").Build();
         var dto = new BookUpdateDto { Title = "New Title" };
 
         _bookRepositoryMock.Setup(r => r.GetByIdAsync(book.Id, ct)).ReturnsAsync(book);
@@ -825,7 +822,7 @@ public class BookServiceMutationTests
     {
         // Arrange
         var ct = CancellationToken.None;
-        var book = new Bookstore.Tests.Builders.BookBuilder().Build();
+        var book = new BookBuilder().Build();
 
         _bookRepositoryMock.Setup(r => r.GetByIdAsync(book.Id, ct)).ReturnsAsync(book);
         _bookRepositoryMock.Setup(r => r.Delete(book));
@@ -862,11 +859,11 @@ public class BookServiceMutationTests
         // Arrange
         var ct = CancellationToken.None;
         var categoryId = Guid.NewGuid();
-        var category = new Bookstore.Tests.Builders.CategoryBuilder().Build();
+        var category = new CategoryBuilder().Build();
         var books = new[]
         {
-            new Bookstore.Tests.Builders.BookBuilder().WithTitle("Book A").Build(),
-            new Bookstore.Tests.Builders.BookBuilder().WithTitle("Book B").Build()
+            new BookBuilder().WithTitle("Book A").Build(),
+            new BookBuilder().WithTitle("Book B").Build()
         };
         const int pageNumber = 1;
         const int pageSize = 10;
@@ -977,7 +974,7 @@ public class CategoryServiceMutationTests
     {
         // Arrange
         var ct = CancellationToken.None;
-        var category = new Bookstore.Tests.Builders.CategoryBuilder().WithName("Old Name").Build();
+        var category = new CategoryBuilder().WithName("Old Name").Build();
         var dto = new CategoryUpdateDto { Name = "New Name" };
 
         _categoryRepositoryMock.Setup(r => r.GetByIdAsync(category.Id, ct)).ReturnsAsync(category);
@@ -1019,7 +1016,7 @@ public class CategoryServiceMutationTests
     {
         // Arrange
         var ct = CancellationToken.None;
-        var category = new Bookstore.Tests.Builders.CategoryBuilder().WithName("Empty Category").Build();
+        var category = new CategoryBuilder().WithName("Empty Category").Build();
 
         _categoryRepositoryMock.Setup(r => r.GetByIdAsync(category.Id, ct)).ReturnsAsync(category);
         _bookRepositoryMock.Setup(r => r.GetCategoryBookCountAsync(category.Id, ct)).ReturnsAsync(0);
@@ -1039,7 +1036,7 @@ public class CategoryServiceMutationTests
     {
         // Arrange
         var ct = CancellationToken.None;
-        var category = new Bookstore.Tests.Builders.CategoryBuilder().WithName("Category With Books").Build();
+        var category = new CategoryBuilder().WithName("Category With Books").Build();
 
         _categoryRepositoryMock.Setup(r => r.GetByIdAsync(category.Id, ct)).ReturnsAsync(category);
         _bookRepositoryMock.Setup(r => r.GetCategoryBookCountAsync(category.Id, ct)).ReturnsAsync(5);

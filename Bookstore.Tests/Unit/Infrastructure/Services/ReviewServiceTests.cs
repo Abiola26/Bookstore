@@ -1,4 +1,3 @@
-using Bookstore.Application.Common;
 using Bookstore.Application.DTOs;
 using Bookstore.Application.Repositories;
 using Bookstore.Domain.Entities;
@@ -7,7 +6,6 @@ using Bookstore.Tests.Builders;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace Bookstore.Tests.Unit.Infrastructure.Services;
 
@@ -110,7 +108,7 @@ public class ReviewServiceTests
         var ct = CancellationToken.None;
 
         _bookRepositoryMock.Setup(r => r.GetByIdAsync(bookId, ct)).ReturnsAsync(book);
-        _userRepositoryMock.Setup(r => r.GetByIdAsync(userId, ct)).ReturnsAsync((Bookstore.Domain.Entities.User?)null);
+        _userRepositoryMock.Setup(r => r.GetByIdAsync(userId, ct)).ReturnsAsync((User?)null);
 
         // Act
         var result = await _service.AddReviewAsync(bookId, userId, dto, ct);

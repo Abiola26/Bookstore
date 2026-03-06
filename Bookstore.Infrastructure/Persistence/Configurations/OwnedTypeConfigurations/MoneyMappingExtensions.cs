@@ -1,4 +1,3 @@
-using System;
 using System.Linq.Expressions;
 using Bookstore.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
@@ -20,7 +19,7 @@ public static class MoneyMappingExtensions
 
             m.Property(p => p.Currency)
                 .HasColumnName("Currency")
-                .HasMaxLength(3)
+                .HasMaxLength(10)
                 .IsRequired();
         });
     }

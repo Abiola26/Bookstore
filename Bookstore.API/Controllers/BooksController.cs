@@ -16,9 +16,9 @@ public class BooksController : ControllerBase
 {
     private readonly IBookService _bookService;
     private readonly ILogger<BooksController> _logger;
-    private readonly Bookstore.Application.Services.IFileStorageService _fileStorage;
+    private readonly IFileStorageService _fileStorage;
 
-    public BooksController(IBookService bookService, ILogger<BooksController> logger, Bookstore.Application.Services.IFileStorageService fileStorage)
+    public BooksController(IBookService bookService, ILogger<BooksController> logger, IFileStorageService fileStorage)
     {
         _bookService = bookService;
         _logger = logger;
@@ -37,8 +37,8 @@ public class BooksController : ControllerBase
     [HttpGet]
     [AllowAnonymous]
     [ResponseCache(Duration = ApplicationConstants.Cache.DefaultExpirationSeconds, VaryByQueryKeys = new[] { "pageNumber", "pageSize" })]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse<PagedResult<BookResponseDto>>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<PagedResult<BookResponseDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> GetBooks([FromQuery] int pageNumber = ApplicationConstants.Pagination.DefaultPageNumber, [FromQuery] int pageSize = ApplicationConstants.Pagination.DefaultPageSize, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Get books page {PageNumber} with size {PageSize}", pageNumber, pageSize);
@@ -57,8 +57,8 @@ public class BooksController : ControllerBase
     [HttpGet("{id:guid}")]
     [AllowAnonymous]
     [ResponseCache(Duration = ApplicationConstants.Cache.DefaultExpirationSeconds, VaryByQueryKeys = new[] { "id" })]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse<BookResponseDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<BookResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetBookById(Guid id, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Get book {BookId}", id);
@@ -76,8 +76,8 @@ public class BooksController : ControllerBase
     /// <response code="400">Invalid search query</response>
     [HttpGet("search/{title}")]
     [AllowAnonymous]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse<ICollection<BookResponseDto>>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<ICollection<BookResponseDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> SearchByTitle([FromRoute] string title, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(title) || title.Length < ApplicationConstants.Validation.MinSearchLength)
@@ -105,9 +105,9 @@ public class BooksController : ControllerBase
     [HttpGet("category/{categoryId:guid}")]
     [AllowAnonymous]
     [ResponseCache(Duration = ApplicationConstants.Cache.DefaultExpirationSeconds, VaryByQueryKeys = new[] { "categoryId", "pageNumber", "pageSize" })]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse<PagedResult<BookResponseDto>>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<PagedResult<BookResponseDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetByCategory(Guid categoryId, [FromQuery] int pageNumber = ApplicationConstants.Pagination.DefaultPageNumber, [FromQuery] int pageSize = ApplicationConstants.Pagination.DefaultPageSize, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Get books for category {CategoryId}", categoryId);
@@ -128,16 +128,45 @@ public class BooksController : ControllerBase
     /// <response code="409">ISBN already exists</response>
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse<BookResponseDto>), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ApiResponse<BookResponseDto>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> CreateBook([FromBody] BookCreateDto dto, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Create book with ISBN {ISBN}", dto.ISBN);
         var response = await _bookService.CreateBookAsync(dto, cancellationToken);
         return StatusCode(response.StatusCode ?? 400, response);
+    }
+
+    /// <summary>
+    /// Bulk upload books from CSV (Admin only)
+    /// </summary>
+    [HttpPost("bulk-upload")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> BulkUpload(IFormFile file, CancellationToken cancellationToken)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(Bookstore.Application.Common.ApiResponse.ErrorResponse("No file uploaded", null, 400));
+
+        if (!file.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(Bookstore.Application.Common.ApiResponse.ErrorResponse("Only CSV files are allowed", null, 400));
+
+        using var stream = file.OpenReadStream();
+        var response = await _bookService.BulkUploadBooksAsync(stream, cancellationToken);
+        return StatusCode(response.StatusCode ?? 400, response);
+    }
+
+    /// <summary>
+    /// Download CSV template for bulk upload (Admin only)
+    /// </summary>
+    [HttpGet("bulk-template")]
+    [Authorize(Roles = "Admin")]
+    public IActionResult DownloadTemplate()
+    {
+        var bytes = _bookService.GetBulkUploadTemplate();
+        return File(bytes, "text/csv", "books_bulk_upload_template.csv");
     }
 
     /// <summary>
@@ -159,17 +188,22 @@ public class BooksController : ControllerBase
             return BadRequest(Bookstore.Application.Common.ApiResponse.ErrorResponse("File too large (max 5MB)", null, 400));
 
         // Save using file storage service
-        var savedPath = await _fileStorage.SaveFileAsync(file.OpenReadStream(), file.FileName, Path.Combine("uploads", "covers"), file.ContentType, cancellationToken);
+        var uploadResult = await _fileStorage.SaveFileAsync(file.OpenReadStream(), file.FileName, Path.Combine("uploads", "covers"), file.ContentType, cancellationToken);
 
         var baseUrl = $"{Request.Scheme}://{Request.Host}";
-        var url = baseUrl.TrimEnd('/') + savedPath;
+        var fullUrl = baseUrl.TrimEnd('/') + uploadResult.FileUrl;
+        var thumbUrl = uploadResult.ThumbnailUrl != null ? baseUrl.TrimEnd('/') + uploadResult.ThumbnailUrl : null;
 
-        var updateDto = new BookUpdateDto { CoverImageUrl = url };
+        var updateDto = new BookUpdateDto { CoverImageUrl = fullUrl };
         var updateResult = await _bookService.UpdateBookAsync(id, updateDto, cancellationToken);
         if (!updateResult.Success)
             return StatusCode(updateResult.StatusCode ?? 500, updateResult);
 
-        return Ok(Bookstore.Application.Common.ApiResponse.SuccessResponse(url, 200));
+        return Ok(Bookstore.Application.Common.ApiResponse<object>.SuccessResponse(new 
+        { 
+            Url = fullUrl, 
+            ThumbnailUrl = thumbUrl 
+        }, "Cover image uploaded successfully", 200));
     }
 
     /// <summary>
@@ -186,11 +220,11 @@ public class BooksController : ControllerBase
     /// <response code="404">Book not found</response>
     [HttpPut("{id:guid}")]
     [Authorize(Roles = "Admin")]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse<BookResponseDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<BookResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateBook(Guid id, [FromBody] BookUpdateDto dto, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Update book {BookId}", id);
@@ -210,10 +244,10 @@ public class BooksController : ControllerBase
     /// <response code="404">Book not found</response>
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "Admin")]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteBook(Guid id, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Delete book {BookId}", id);

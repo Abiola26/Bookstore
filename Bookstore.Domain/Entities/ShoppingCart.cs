@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using Bookstore.Domain.ValueObjects;
 
 namespace Bookstore.Domain.Entities;
@@ -37,7 +35,7 @@ public class ShoppingCart : BaseEntity
         if (item == null) throw new ArgumentNullException(nameof(item));
 
         var existingItem = _items.FirstOrDefault(i => i.BookId == item.BookId);
-        
+
         if (existingItem != null)
         {
             // Update quantity if item already exists

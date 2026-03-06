@@ -43,14 +43,8 @@ public class CategoryService : ICategoryService
     {
         try
         {
-            var categories = await _unitOfWork.Categories.GetAllAsync(cancellationToken);
-            var dtos = new List<CategoryResponseDto>();
-
-            foreach (var category in categories)
-            {
-                var bookCount = await _unitOfWork.Books.GetCategoryBookCountAsync(category.Id, cancellationToken);
-                dtos.Add(MapToDto(category, bookCount));
-            }
+            var categoriesWithCounts = await _unitOfWork.Categories.GetAllWithBookCountsAsync(cancellationToken);
+            var dtos = categoriesWithCounts.Select(x => MapToDto(x.Category, x.BookCount)).ToList();
 
             return ApiResponse<ICollection<CategoryResponseDto>>.SuccessResponse(dtos);
         }

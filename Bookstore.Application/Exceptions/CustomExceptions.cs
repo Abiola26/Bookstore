@@ -3,7 +3,7 @@ namespace Bookstore.Application.Exceptions;
 public class NotFoundException : Exception
 {
     public NotFoundException(string message) : base(message) { }
-    public NotFoundException(string entityName, Guid id) 
+    public NotFoundException(string entityName, Guid id)
         : base($"{entityName} with ID {id} not found.") { }
 }
 
@@ -21,7 +21,7 @@ public class ValidationException : Exception
         Errors = new List<string> { message };
     }
 
-    public ValidationException(ICollection<string> errors) 
+    public ValidationException(ICollection<string> errors)
         : base($"Validation failed with {errors.Count} error(s)")
     {
         Errors = errors;

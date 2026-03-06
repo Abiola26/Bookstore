@@ -1,18 +1,11 @@
 using Bookstore.Application.Common;
 using Bookstore.Application.DTOs;
 using Bookstore.Domain.Entities;
-using Bookstore.Domain.Enum;
-using Bookstore.Infrastructure;
 using Bookstore.Infrastructure.Persistence;
-using Bookstore.Tests.Integration.Api;
 using FluentAssertions;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Newtonsoft.Json;
 using System.Net;
 using System.Net.Http.Json;
-using Xunit;
 
 namespace Bookstore.Tests.Integration.Api;
 
@@ -37,7 +30,7 @@ public class BooksApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
         {
             var context = scope.ServiceProvider.GetRequiredService<BookStoreDbContext>();
             var passwordHash = BCrypt.Net.BCrypt.HashPassword(password);
-            var user = new Bookstore.Domain.Entities.User("Admin User", email, passwordHash, Bookstore.Domain.Enum.UserRole.Admin);
+            var user = new User("Admin User", email, passwordHash, Bookstore.Domain.Enum.UserRole.Admin);
             user.EmailConfirmed = true;
             context.Users.Add(user);
             await context.SaveChangesAsync();
@@ -46,7 +39,7 @@ public class BooksApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
         // Login
         var loginResp = await _client.PostAsJsonAsync("/api/auth/login", new UserLoginDto { Email = email, Password = password });
         loginResp.EnsureSuccessStatusCode();
-        var authData = await loginResp.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<AuthResponseDto>>();
+        var authData = await loginResp.Content.ReadFromJsonAsync<ApiResponse<AuthResponseDto>>();
         return authData!.Data!.Token;
     }
 
@@ -58,7 +51,7 @@ public class BooksApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<PagedResult<BookResponseDto>>>();
+        var content = await response.Content.ReadFromJsonAsync<ApiResponse<PagedResult<BookResponseDto>>>();
         content.Should().NotBeNull();
     }
 
@@ -73,7 +66,7 @@ public class BooksApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
         using (var scope = _factory.Services.CreateScope())
         {
             var context = scope.ServiceProvider.GetRequiredService<BookStoreDbContext>();
-            var category = new Category("Test Category");
+            var category = new Category($"Test Category {Guid.NewGuid()}");
             context.Categories.Add(category);
             await context.SaveChangesAsync();
             categoryId = category.Id;
@@ -87,7 +80,7 @@ public class BooksApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
             Price = 29.99m,
             TotalQuantity = 50,
             CategoryId = categoryId,
-            ISBN = "978" + DateTime.UtcNow.Ticks.ToString().Substring(DateTime.UtcNow.Ticks.ToString().Length - 10)
+            ISBN = "978-0-" + Math.Abs(Guid.NewGuid().GetHashCode() % 1000000).ToString("D6")
         };
 
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/books");
@@ -99,7 +92,7 @@ public class BooksApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-        var content = await response.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<BookResponseDto>>();
+        var content = await response.Content.ReadFromJsonAsync<ApiResponse<BookResponseDto>>();
         content!.Data!.Title.Should().Be(createDto.Title);
     }
 
@@ -115,7 +108,7 @@ public class BooksApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
         {
             var context = scope.ServiceProvider.GetRequiredService<BookStoreDbContext>();
             var passwordHash = BCrypt.Net.BCrypt.HashPassword(password);
-            var user = new Bookstore.Domain.Entities.User("Normal User", email, passwordHash, Bookstore.Domain.Enum.UserRole.User);
+            var user = new User("Normal User", email, passwordHash, Bookstore.Domain.Enum.UserRole.User);
             user.EmailConfirmed = true;
             context.Users.Add(user);
             await context.SaveChangesAsync();
@@ -123,7 +116,7 @@ public class BooksApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
 
         var loginResp = await _client.PostAsJsonAsync("/api/auth/login", new UserLoginDto { Email = email, Password = password });
         loginResp.EnsureSuccessStatusCode();
-        var authData = await loginResp.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<AuthResponseDto>>();
+        var authData = await loginResp.Content.ReadFromJsonAsync<ApiResponse<AuthResponseDto>>();
         var token = authData!.Data!.Token;
 
         var createDto = new BookCreateDto { Title = "Unauthorized" };

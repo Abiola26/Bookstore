@@ -2,11 +2,9 @@ using Bookstore.Application.DTOs;
 using Bookstore.Application.Common;
 using Bookstore.Application.Services;
 using Microsoft.Extensions.Logging;
-using Bookstore.Application.Exceptions;
 using Bookstore.Application.Repositories;
 using Bookstore.Application.Validators;
 using Bookstore.Domain.Entities;
-using Bookstore.Domain.ValueObjects;
 using Bookstore.Domain.Enum;
 
 namespace Bookstore.Infrastructure.Services;
@@ -74,7 +72,7 @@ public class OrderService : IOrderService
 
             var orders = await _unitOfWork.Orders.GetByUserIdPaginatedAsync(userId, pageNumber, pageSize, cancellationToken);
             var totalCount = await _unitOfWork.Orders.GetUserOrderCountAsync(userId, cancellationToken);
-            
+
             var dtos = orders.Select(MapToDto).ToList();
             var pagedResult = new PagedResult<OrderResponseDto>(dtos, totalCount, pageNumber, pageSize);
 
@@ -96,7 +94,7 @@ public class OrderService : IOrderService
 
             var orders = await _unitOfWork.Orders.GetAllOrdersPaginatedAsync(pageNumber, pageSize, cancellationToken);
             var totalCount = await _unitOfWork.Orders.GetTotalOrderCountAsync(cancellationToken);
-            
+
             var dtos = orders.Select(MapToDto).ToList();
             var pagedResult = new PagedResult<OrderResponseDto>(dtos, totalCount, pageNumber, pageSize);
 
@@ -140,75 +138,75 @@ public class OrderService : IOrderService
             if (!user.EmailConfirmed)
                 return ApiResponse<OrderResponseDto>.ErrorResponse("Email must be confirmed before place an order", null, 403);
 
-            // Start transaction for order creation and inventory update
-            await _unitOfWork.BeginTransactionAsync(cancellationToken);
-
-            try
+        return await _unitOfWork.ExecuteInTransactionAsync(async (ct) =>
+        {
+            var order = new Order(userId)
             {
-                var order = new Order(userId)
+                IdempotencyKey = idempotencyKey
+            };
+
+            foreach (var itemDto in dto.Items)
+            {
+                var book = await _unitOfWork.Books.GetByIdAsync(itemDto.BookId, ct);
+                if (book == null)
                 {
-                    IdempotencyKey = idempotencyKey
-                };
-                var totalAmount = Money.Zero("USD");
-
-                foreach (var itemDto in dto.Items)
-                {
-                    var book = await _unitOfWork.Books.GetByIdAsync(itemDto.BookId, cancellationToken);
-                    if (book == null)
-                    {
-                        await _unitOfWork.RollbackAsync(cancellationToken);
-                        return ApiResponse<OrderResponseDto>.ErrorResponse(
-                            $"Book with ID {itemDto.BookId} not found",
-                            null, 404);
-                    }
-
-                    // Check stock
-                    if (book.TotalQuantity < itemDto.Quantity)
-                    {
-                        await _unitOfWork.RollbackAsync(cancellationToken);
-                        return ApiResponse<OrderResponseDto>.ErrorResponse(
-                            $"Insufficient stock for book '{book.Title}'",
-                            new List<string> { $"Requested: {itemDto.Quantity}, Available: {book.TotalQuantity}" },
-                            400);
-                    }
-
-                    // Create order item
-                    var orderItem = new OrderItem(order.Id, itemDto.BookId, itemDto.Quantity, book.Price);
-                    order.AddItem(orderItem);
-                    await _unitOfWork.OrderItems.AddAsync(orderItem, cancellationToken);
-
-                    // Reduce stock
-                    book.TotalQuantity -= itemDto.Quantity;
-                    _unitOfWork.Books.Update(book);
-
-                    totalAmount = totalAmount + (book.Price * itemDto.Quantity);
+                    throw new Bookstore.Application.Exceptions.NotFoundException($"Book with ID {itemDto.BookId} not found");
                 }
 
-                // Ensure order has correct total
-                order.TotalAmount = totalAmount;
+                // Validate currency consistency (Orders must be single-currency)
+                if (order.OrderItems.Count > 0 && book.Price.Currency != order.TotalAmount.Currency)
+                {
+                    throw new Bookstore.Application.Exceptions.BusinessException("Mixed currencies in a single order are not allowed");
+                }
 
-                await _unitOfWork.Orders.AddAsync(order, cancellationToken);
-                await _unitOfWork.CommitAsync(cancellationToken);
+                // Check stock
+                if (book.TotalQuantity < itemDto.Quantity)
+                {
+                    throw new Bookstore.Application.Exceptions.OutOfStockException(book.Title, itemDto.Quantity, book.TotalQuantity);
+                }
 
-                // Fetch full order details
-                var createdOrder = await _unitOfWork.Orders.GetWithItemsAsync(order.Id, cancellationToken);
-                return ApiResponse<OrderResponseDto>.SuccessResponse(
-                    MapToDto(createdOrder!),
-                    "Order created successfully",
-                    201);
+                // Create and add order item (automatically updates order.TotalAmount)
+                var orderItem = new OrderItem(order.Id, itemDto.BookId, itemDto.Quantity, book.Price);
+                order.AddItem(orderItem);
+                await _unitOfWork.OrderItems.AddAsync(orderItem, ct);
+
+                // Reduce stock
+                book.TotalQuantity -= itemDto.Quantity;
+                _unitOfWork.Books.Update(book);
             }
-            catch (Exception)
-            {
-                await _unitOfWork.RollbackAsync(cancellationToken);
-                throw;
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error creating order for user {UserId}", userId);
-            return ApiResponse<OrderResponseDto>.ErrorResponse("An error occurred while creating the order", null, 500);
-        }
+
+            await _unitOfWork.Orders.AddAsync(order, ct);
+            // SaveChangesAsync is called by the ExecuteInTransactionAsync wrapper
+            
+            // We need to return the DTO, but the outer wrapper expects ApiResponse<OrderResponseDto>
+            // Actually, I should probably return the DTO and wrap it outside, or return the ApiResponse from within.
+            // Returning the ApiResponse from within is easier given the return type is Task<T>.
+            
+            // Wait, I need to fetch with items for the DTO
+            await _unitOfWork.SaveChangesAsync(ct); // Ensure saved so we can fetch back if needed, 
+            // but the wrapper also calls it. Let's do it here to be safe and fetch.
+            
+            var createdOrder = await _unitOfWork.Orders.GetWithItemsAsync(order.Id, ct);
+            return ApiResponse<OrderResponseDto>.SuccessResponse(
+                MapToDto(createdOrder!),
+                "Order created successfully",
+                201);
+        }, cancellationToken);
     }
+    catch (Bookstore.Application.Exceptions.NotFoundException ex)
+    {
+        return ApiResponse<OrderResponseDto>.ErrorResponse(ex.Message, null, 404);
+    }
+    catch (Bookstore.Application.Exceptions.BusinessException ex)
+    {
+        return ApiResponse<OrderResponseDto>.ErrorResponse(ex.Message, null, 400);
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error creating order for user {UserId}", userId);
+        return ApiResponse<OrderResponseDto>.ErrorResponse("An error occurred while creating the order", null, 500);
+    }
+}
 
     public async Task<ApiResponse<OrderResponseDto>> UpdateOrderStatusAsync(Guid orderId, OrderUpdateStatusDto dto, CancellationToken cancellationToken = default)
     {

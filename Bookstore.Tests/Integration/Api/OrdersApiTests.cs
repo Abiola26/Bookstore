@@ -1,18 +1,13 @@
 using Bookstore.Application.DTOs;
 using Bookstore.Domain.Entities;
 using Bookstore.Domain.Enum;
-using Bookstore.Infrastructure;
 using Bookstore.Infrastructure.Persistence;
-using Bookstore.Tests.Integration.Api;
 using FluentAssertions;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Newtonsoft.Json;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using Xunit;
 
 namespace Bookstore.Tests.Integration.Api;
 
@@ -35,7 +30,7 @@ public class OrdersApiTests : IClassFixture<CustomWebApplicationFactory<Program>
         var user = await context.Users.FirstOrDefaultAsync(u => u.Email == email);
         if (user == null)
         {
-            user = new User("Test User", email, BCrypt.Net.BCrypt.HashPassword("Password123!"), 
+            user = new User("Test User", email, BCrypt.Net.BCrypt.HashPassword("Password123!"),
                 role == "Admin" ? UserRole.Admin : UserRole.User)
             {
                 EmailConfirmed = true
@@ -46,7 +41,7 @@ public class OrdersApiTests : IClassFixture<CustomWebApplicationFactory<Program>
 
         var loginDto = new UserLoginDto { Email = email, Password = "Password123!" };
         var response = await _client.PostAsJsonAsync("/api/auth/login", loginDto);
-        var content = await response.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<AuthResponseDto>>();
+        var content = await response.Content.ReadFromJsonAsync<Application.Common.ApiResponse<AuthResponseDto>>();
         return content!.Data!.Token;
     }
 
@@ -55,15 +50,15 @@ public class OrdersApiTests : IClassFixture<CustomWebApplicationFactory<Program>
         using var scope = _factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<BookStoreDbContext>();
 
-        var category = new Category("Test Category");
+        var category = new Category($"Test Category {Guid.NewGuid()}");
         context.Categories.Add(category);
         await context.SaveChangesAsync();
 
         var book = new Book(
             "Test Book",
             "Description",
-            new Bookstore.Domain.ValueObjects.ISBN("978-3-16-148410-0"),
-            new Bookstore.Domain.ValueObjects.Money(29.99m, "USD"),
+            new Domain.ValueObjects.ISBN("978-0-" + Math.Abs(Guid.NewGuid().GetHashCode() % 1000000).ToString("D6")),
+            new Domain.ValueObjects.Money(29.99m, "USD"),
             "Author",
             100,
             category.Id
@@ -95,7 +90,7 @@ public class OrdersApiTests : IClassFixture<CustomWebApplicationFactory<Program>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-        var content = await response.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<OrderResponseDto>>();
+        var content = await response.Content.ReadFromJsonAsync<Application.Common.ApiResponse<OrderResponseDto>>();
         content.Should().NotBeNull();
         content!.Data!.Items.Should().HaveCount(1);
     }
@@ -121,7 +116,7 @@ public class OrdersApiTests : IClassFixture<CustomWebApplicationFactory<Program>
         var email = $"user-{Guid.NewGuid()}@example.com";
         var token = await GetTokenAsync(email);
         var bookId = await SeedCategoryAndBookAsync();
-        
+
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         await _client.PostAsJsonAsync("/api/orders", new OrderCreateDto
         {
@@ -133,7 +128,7 @@ public class OrdersApiTests : IClassFixture<CustomWebApplicationFactory<Program>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<ICollection<OrderResponseDto>>>();
+        var content = await response.Content.ReadFromJsonAsync<Application.Common.ApiResponse<ICollection<OrderResponseDto>>>();
         content!.Data.Should().NotBeEmpty();
     }
 
@@ -144,13 +139,13 @@ public class OrdersApiTests : IClassFixture<CustomWebApplicationFactory<Program>
         var email = $"user-{Guid.NewGuid()}@example.com";
         var token = await GetTokenAsync(email);
         var bookId = await SeedCategoryAndBookAsync();
-        
+
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         var createResponse = await _client.PostAsJsonAsync("/api/orders", new OrderCreateDto
         {
             Items = new List<OrderItemCreateDto> { new OrderItemCreateDto { BookId = bookId, Quantity = 1 } }
         });
-        var order = await createResponse.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<OrderResponseDto>>();
+        var order = await createResponse.Content.ReadFromJsonAsync<Application.Common.ApiResponse<OrderResponseDto>>();
 
         // Act
         var response = await _client.GetAsync($"/api/orders/{order!.Data!.Id}");
@@ -172,7 +167,7 @@ public class OrdersApiTests : IClassFixture<CustomWebApplicationFactory<Program>
         {
             Items = new List<OrderItemCreateDto> { new OrderItemCreateDto { BookId = bookId, Quantity = 1 } }
         });
-        var order = await createResponse.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<OrderResponseDto>>();
+        var order = await createResponse.Content.ReadFromJsonAsync<Application.Common.ApiResponse<OrderResponseDto>>();
 
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
         var updateDto = new OrderUpdateStatusDto { Status = "Paid" };
@@ -182,7 +177,7 @@ public class OrdersApiTests : IClassFixture<CustomWebApplicationFactory<Program>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<OrderResponseDto>>();
+        var content = await response.Content.ReadFromJsonAsync<Application.Common.ApiResponse<OrderResponseDto>>();
         content!.Data!.Status.Should().Be("Paid");
     }
 
@@ -198,7 +193,7 @@ public class OrdersApiTests : IClassFixture<CustomWebApplicationFactory<Program>
         {
             Items = new List<OrderItemCreateDto> { new OrderItemCreateDto { BookId = bookId, Quantity = 1 } }
         });
-        var order = await createResponse.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<OrderResponseDto>>();
+        var order = await createResponse.Content.ReadFromJsonAsync<Application.Common.ApiResponse<OrderResponseDto>>();
 
         var updateDto = new OrderUpdateStatusDto { Status = "Paid" };
 

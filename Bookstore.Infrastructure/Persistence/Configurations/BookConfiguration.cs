@@ -1,6 +1,5 @@
 using Bookstore.Domain.Entities;
 using Bookstore.Domain.ValueObjects;
-using Bookstore.Infrastructure.Persistence.Configurations.OwnedTypeConfigurations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -23,13 +22,14 @@ public class BookConfiguration : IEntityTypeConfiguration<Book>
 
         // Map ISBN value object as string column
         builder.Property(b => b.ISBN)
-            .HasConversion(v => v.ToString(), v => (Bookstore.Domain.ValueObjects.ISBN) v)
+            .HasConversion(v => v.ToString(), v => (ISBN)v)
             .IsRequired()
             .HasMaxLength(20)
             .HasColumnName("ISBN");
 
         builder.HasIndex(b => b.ISBN)
             .IsUnique()
+            .HasFilter("\"IsDeleted\" = false")
             .HasDatabaseName("IX_Books_ISBN");
 
         builder.Property(b => b.Publisher)
@@ -47,7 +47,7 @@ public class BookConfiguration : IEntityTypeConfiguration<Book>
 
             m.Property(p => p.Currency)
                 .HasColumnName("Currency")
-                .HasMaxLength(3)
+                .HasMaxLength(10)
                 .IsRequired();
         });
 

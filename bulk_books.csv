@@ -1,0 +1,4 @@
+Title,Author,ISBN,Price,Currency,Quantity,Description,Category,CoverImageUrl
+"1984","George Orwell","9780451524935",9.99,USD,50,"Dystopian novel.","Fiction",""
+"Clean Code","Robert C. Martin","9780132350884",45.50,USD,20,"A Handbook of Agile Software Craftsmanship.","Technology",""
+"The Hobbit","J.R.R. Tolkien","9780547928227",14.99,USD,30,"Fantasy novel.","Fiction",""

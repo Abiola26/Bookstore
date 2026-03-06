@@ -28,6 +28,7 @@ public interface ICategoryRepository : IGenericRepository<Category>
 {
     Task<Category?> GetByNameAsync(string name, CancellationToken cancellationToken = default);
     Task<bool> NameExistsAsync(string name, Guid? excludeCategoryId = null, CancellationToken cancellationToken = default);
+    Task<ICollection<(Category Category, int BookCount)>> GetAllWithBookCountsAsync(CancellationToken cancellationToken = default);
 }
 
 public interface IUserRepository : IGenericRepository<User>
@@ -89,4 +90,5 @@ public interface IUnitOfWork : IDisposable
     Task BeginTransactionAsync(CancellationToken cancellationToken = default);
     Task CommitAsync(CancellationToken cancellationToken = default);
     Task RollbackAsync(CancellationToken cancellationToken = default);
+    Task<T> ExecuteInTransactionAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken = default);
 }

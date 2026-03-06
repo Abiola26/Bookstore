@@ -1,7 +1,6 @@
 using Bookstore.Application.DTOs;
 using Bookstore.Application.Common;
 using Bookstore.Application.Services;
-using Bookstore.Application.Exceptions;
 using Bookstore.Application.Repositories;
 using Bookstore.Application.Validators;
 using Microsoft.Extensions.Logging;
@@ -10,7 +9,6 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.Extensions.Configuration;
 using Bookstore.Domain.Enum;
 
 namespace Bookstore.Infrastructure.Services;
@@ -19,8 +17,8 @@ public class AuthenticationService : IAuthenticationService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<AuthenticationService> _logger;
-    private readonly Microsoft.Extensions.Options.IOptions<Bookstore.Application.Settings.JwtSettings> _jwtOptions;
-    private readonly Microsoft.Extensions.Options.IOptions<Bookstore.Application.Settings.EmailSettings> _emailOptions;
+    private readonly Microsoft.Extensions.Options.IOptions<Application.Settings.JwtSettings> _jwtOptions;
+    private readonly Microsoft.Extensions.Options.IOptions<Application.Settings.EmailSettings> _emailOptions;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IEmailSender _emailSender;
     private readonly UserRegisterDtoValidator _registerValidator;
@@ -28,8 +26,8 @@ public class AuthenticationService : IAuthenticationService
 
     public AuthenticationService(IUnitOfWork unitOfWork,
         ILogger<AuthenticationService> logger,
-        Microsoft.Extensions.Options.IOptions<Bookstore.Application.Settings.JwtSettings> jwtOptions,
-        Microsoft.Extensions.Options.IOptions<Bookstore.Application.Settings.EmailSettings> emailOptions,
+        Microsoft.Extensions.Options.IOptions<Application.Settings.JwtSettings> jwtOptions,
+        Microsoft.Extensions.Options.IOptions<Application.Settings.EmailSettings> emailOptions,
         IPasswordHasher passwordHasher,
         IEmailSender emailSender)
     {
@@ -67,8 +65,8 @@ public class AuthenticationService : IAuthenticationService
             if (user == null)
                 return ApiResponse.SuccessResponse("If the email exists, a password reset link will be sent.");
 
-            // Generate reset token
-            var resetToken = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
+            // Generate reset token (Alphanumeric for URL safety)
+            var resetToken = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
             user.PasswordResetToken = resetToken;
             var expiryHours = _emailOptions.Value?.PasswordResetTokenExpiryHours ?? 2;
             user.PasswordResetTokenExpiresAt = DateTimeOffset.UtcNow.AddHours(expiryHours);
@@ -167,7 +165,10 @@ public class AuthenticationService : IAuthenticationService
     {
         var validationErrors = _registerValidator.Validate(dto);
         if (validationErrors.Count > 0)
-            return ApiResponse<AuthResponseDto>.ErrorResponse("Validation failed", validationErrors, 400);
+        {
+            var firstError = validationErrors[0];
+            return ApiResponse<AuthResponseDto>.ErrorResponse(firstError, validationErrors, 400);
+        }
 
         // Check if email already exists
         var emailExists = await _unitOfWork.Users.EmailExistsAsync(dto.Email, null, cancellationToken);
@@ -181,8 +182,8 @@ public class AuthenticationService : IAuthenticationService
             var user = new User(dto.FullName, dto.Email, passwordHash, UserRole.User);
             user.PhoneNumber = dto.PhoneNumber;
 
-            // Generate email confirmation token
-            var confirmationToken = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
+            // Generate email confirmation token (Alphanumeric for URL safety)
+            var confirmationToken = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
             user.EmailConfirmationToken = confirmationToken;
             var expiryHours = _emailOptions.Value?.ConfirmationTokenExpiryHours ?? 24;
             user.EmailConfirmationTokenExpiresAt = DateTimeOffset.UtcNow.AddHours(expiryHours);
@@ -191,9 +192,10 @@ public class AuthenticationService : IAuthenticationService
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // Send confirmation email
-            var frontendOrigin = _emailOptions.Value?.ConfirmationUrlOrigin ?? string.Empty;
-            var confirmPath = $"/api/email/confirm?userId={user.Id}&token={Uri.EscapeDataString(confirmationToken)}";
-            var confirmUrl = string.IsNullOrEmpty(frontendOrigin) ? confirmPath : new Uri(new Uri(frontendOrigin), confirmPath).ToString();
+            // Send confirmation email directly to the backend
+            var apiBaseUrl = _emailOptions.Value?.ApiBaseUrl ?? string.Empty;
+            var confirmPath = $"/api/Email/confirm?userId={user.Id}&token={Uri.EscapeDataString(confirmationToken)}";
+            var confirmUrl = string.IsNullOrEmpty(apiBaseUrl) ? confirmPath : new Uri(new Uri(apiBaseUrl), confirmPath).ToString();
 
             var content = $@"
                 <p>Hi <strong>{user.FullName}</strong>,</p>
@@ -237,8 +239,8 @@ public class AuthenticationService : IAuthenticationService
             if (user.EmailConfirmed)
                 return ApiResponse.SuccessResponse("Email already confirmed");
 
-            // Generate new token and update expiry
-            var confirmationToken = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
+            // Generate new token and update expiry (Alphanumeric for URL safety)
+            var confirmationToken = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
             user.EmailConfirmationToken = confirmationToken;
             var expiryHours = _emailOptions.Value?.ConfirmationTokenExpiryHours ?? 24;
             user.EmailConfirmationTokenExpiresAt = DateTimeOffset.UtcNow.AddHours(expiryHours);
@@ -246,9 +248,10 @@ public class AuthenticationService : IAuthenticationService
             _unitOfWork.Users.Update(user);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            var frontendOrigin = _emailOptions.Value?.ConfirmationUrlOrigin ?? string.Empty;
-            var confirmPath = $"/api/email/confirm?userId={user.Id}&token={Uri.EscapeDataString(confirmationToken)}";
-            var confirmUrl = string.IsNullOrEmpty(frontendOrigin) ? confirmPath : new Uri(new Uri(frontendOrigin), confirmPath).ToString();
+            // Send confirmation email directly to the backend
+            var apiBaseUrl = _emailOptions.Value?.ApiBaseUrl ?? string.Empty;
+            var confirmPath = $"/api/Email/confirm?userId={user.Id}&token={Uri.EscapeDataString(confirmationToken)}";
+            var confirmUrl = string.IsNullOrEmpty(apiBaseUrl) ? confirmPath : new Uri(new Uri(apiBaseUrl), confirmPath).ToString();
             var content = $@"
                 <p>Hi <strong>{user.FullName}</strong>,</p>
                 <p>You requested a new confirmation link. Please click the button below to verify your email address:</p>
@@ -283,7 +286,10 @@ public class AuthenticationService : IAuthenticationService
                 return ApiResponse.ErrorResponse("No confirmation token found or expired", null, 400);
 
             if (user.EmailConfirmationToken != token)
+            {
+                _logger.LogWarning("Email confirmation failed for user {UserId}. Token mismatch. Received: {ReceivedToken}, Expected: {ExpectedToken}", userId, token, user.EmailConfirmationToken);
                 return ApiResponse.ErrorResponse("Invalid confirmation token", null, 400);
+            }
 
             if (user.EmailConfirmationTokenExpiresAt < DateTimeOffset.UtcNow)
                 return ApiResponse.ErrorResponse("Confirmation token has expired", null, 400);
@@ -303,7 +309,7 @@ public class AuthenticationService : IAuthenticationService
                 <div style='text-align: center; margin: 30px 0;'>
                     <a href='{_emailOptions.Value?.ConfirmationUrlOrigin}' style='background-color: #28a745; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;'>Start Browsing</a>
                 </div>";
-            
+
             await _emailSender.SendEmailAsync(user.Email, "Account Activated - Welcome to Bookstore", GetEmailShell("Your Account is Ready!", welcomeContent), cancellationToken);
 
             return ApiResponse.SuccessResponse("Email confirmed successfully");
@@ -325,13 +331,22 @@ public class AuthenticationService : IAuthenticationService
         {
             var user = await _unitOfWork.Users.GetByEmailAsync(dto.Email, cancellationToken);
             if (user == null)
+            {
+                _logger.LogWarning("Login failed: User with email {Email} not found", dto.Email);
                 return ApiResponse<AuthResponseDto>.ErrorResponse("Invalid email or password", null, 401);
+            }
 
             if (!user.EmailConfirmed)
+            {
+                _logger.LogWarning("Login failed: User {Email} has not confirmed their email", dto.Email);
                 return ApiResponse<AuthResponseDto>.ErrorResponse("Email not confirmed", null, 403);
+            }
 
             if (!await _passwordHasher.VerifyAsync(dto.Password, user.PasswordHash))
+            {
+                _logger.LogWarning("Login failed: Incorrect password for user {Email}", dto.Email);
                 return ApiResponse<AuthResponseDto>.ErrorResponse("Invalid email or password", null, 401);
+            }
 
             var token = GenerateJwtToken(user.Id, user.Email, user.FullName, user.Role.ToString());
 
@@ -382,6 +397,11 @@ public class AuthenticationService : IAuthenticationService
     }
 
     // Password hashing/verification is delegated to IPasswordHasher implementation
+
+    public string GetFrontendOrigin()
+    {
+        return _emailOptions.Value?.ConfirmationUrlOrigin ?? "http://localhost:3000";
+    }
 
     public string GenerateJwtToken(Guid userId, string email, string fullName, string role)
     {

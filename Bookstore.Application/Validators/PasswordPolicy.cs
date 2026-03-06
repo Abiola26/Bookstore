@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-
 namespace Bookstore.Application.Validators;
 
 public static class PasswordPolicy
@@ -15,8 +11,8 @@ public static class PasswordPolicy
             return errors;
         }
 
-        if (password.Length < 12)
-            errors.Add("Password must be at least 12 characters long.");
+        if (password.Length < 6)
+            errors.Add("Password must be at least 6 characters long.");
 
         if (!password.Any(char.IsUpper))
             errors.Add("Password must contain at least one uppercase letter.");

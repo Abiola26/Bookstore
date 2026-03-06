@@ -54,7 +54,7 @@ public static class TestDataFactory
     {
         var categories = new List<Category>();
         var categoryNames = new[] { "Fiction", "Science", "History", "Technology", "Art" };
-        
+
         for (int i = 0; i < Math.Min(count, categoryNames.Length); i++)
         {
             categories.Add(CreateValidCategory(categoryNames[i]));

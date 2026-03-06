@@ -1,4 +1,5 @@
 using Bookstore.Domain.Entities;
+using Bookstore.Domain.ValueObjects;
 using Bookstore.Application.Repositories;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,9 +11,17 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
 
     public async Task<Book?> GetByISBNAsync(string isbn, CancellationToken cancellationToken = default)
     {
-        return await _dbSet
-            .Include(b => b.Category)
-            .FirstOrDefaultAsync(b => b.ISBN.ToString() == isbn, cancellationToken);
+        // SqlQueryRaw bypasses the ISBN value-object converter so the column is compared as a plain string.
+        var id = await _context.Database
+            .SqlQueryRaw<Guid>(
+                @"SELECT ""Id"" ""Value"" FROM ""Books"" WHERE ""ISBN"" = {0} AND ""IsDeleted"" = false LIMIT 1",
+                isbn)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (id == Guid.Empty)
+            return null;
+
+        return await _dbSet.Include(b => b.Category).FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
     }
 
     public async Task<ICollection<Book>> GetByCategoryAsync(Guid categoryId, CancellationToken cancellationToken = default)
@@ -48,12 +57,18 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
 
     public async Task<bool> ISBNExistsAsync(string isbn, Guid? excludeBookId = null, CancellationToken cancellationToken = default)
     {
-        var query = _dbSet.AsQueryable();
+        var isbnObj = new ISBN(isbn);
         
-        if (excludeBookId.HasValue)
-            query = query.Where(b => b.Id != excludeBookId.Value);
+        var query = _context.Books
+            .IgnoreQueryFilters()
+            .AsNoTracking();
 
-        return await query.AnyAsync(b => b.ISBN.ToString() == isbn, cancellationToken);
+        if (excludeBookId.HasValue)
+        {
+            query = query.Where(b => b.Id != excludeBookId.Value);
+        }
+
+        return await query.AnyAsync(b => b.ISBN == isbnObj, cancellationToken);
     }
 
     public async Task<ICollection<Book>> GetPaginatedByCategoryAsync(Guid categoryId, int pageNumber, int pageSize, CancellationToken cancellationToken = default)

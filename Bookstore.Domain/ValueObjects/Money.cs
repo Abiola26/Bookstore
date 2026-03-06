@@ -1,5 +1,3 @@
-using System;
-
 namespace Bookstore.Domain.ValueObjects;
 
 public sealed class Money : IEquatable<Money>
@@ -10,8 +8,11 @@ public sealed class Money : IEquatable<Money>
     public Money(decimal amount, string currency = "USD")
     {
         if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));
+        if (string.IsNullOrWhiteSpace(currency)) throw new ArgumentException("Currency is required", nameof(currency));
+        if (currency.Length > 10) throw new ArgumentException("Currency code cannot exceed 10 characters", nameof(currency));
+
         Amount = decimal.Round(amount, 2);
-        Currency = currency;
+        Currency = currency.Trim().ToUpperInvariant();
     }
 
     public static Money Zero(string currency = "USD") => new Money(0m, currency);

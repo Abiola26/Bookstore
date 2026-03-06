@@ -1,5 +1,4 @@
 using Bookstore.Domain.ValueObjects;
-using System;
 
 namespace Bookstore.Domain.Entities;
 

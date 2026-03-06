@@ -2,8 +2,6 @@ using Bookstore.Domain.Entities;
 using Bookstore.Domain.Enum;
 using Bookstore.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
 
 namespace Bookstore.Infrastructure.Persistence;
 
@@ -17,7 +15,6 @@ public static class ModelBuilderExtensions
         var scienceCategoryId = new Guid("3d3d3d1d-3d3d-3d3d-3d3d-3d3d3d3d3d3d");
 
         var adminUserId = new Guid("d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8a");
-        var regularUserId = new Guid("a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d");
 
         var seedDate = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
@@ -29,8 +26,8 @@ public static class ModelBuilderExtensions
         );
 
         // Users (Passwords are 'Password123!' hashed with BCrypt)
-        // Hash: $2a$11$8k7.Y8R3h2Bf8WvE1H6eNuI7F1Z1e1K1W1S1a1P1l1y1C1o1r1K1.
-        var commonHash = "$2a$11$8k7.Y8R3h2Bf8WvE1H6eNuI7F1Z1e1K1W1S1a1P1l1y1C1o1r1K1."; 
+        // Hash for Password123!: $2a$11$TYzEUYgUCR2I.TDbTxrBvuKrLZ3e6mNKKmV2oKSELgKzKTMHB.K7y
+        var commonHash = "$2a$11$TYzEUYgUCR2I.TDbTxrBvuKrLZ3e6mNKKmV2oKSELgKzKTMHB.K7y";
 
         modelBuilder.Entity<User>().HasData(
             new
@@ -41,18 +38,6 @@ public static class ModelBuilderExtensions
                 EmailConfirmed = true,
                 PasswordHash = commonHash,
                 Role = UserRole.Admin,
-                CreatedAt = seedDate,
-                UpdatedAt = seedDate,
-                IsDeleted = false
-            },
-            new
-            {
-                Id = regularUserId,
-                FullName = "John Doe",
-                Email = "user@bookstore.com",
-                EmailConfirmed = true,
-                PasswordHash = commonHash,
-                Role = UserRole.User,
                 CreatedAt = seedDate,
                 UpdatedAt = seedDate,
                 IsDeleted = false
@@ -130,7 +115,7 @@ public static class ModelBuilderExtensions
             new
             {
                 Id = sampleOrderId,
-                UserId = regularUserId,
+                UserId = adminUserId,
                 Status = OrderStatus.Completed,
                 IdempotencyKey = "SEED-ORDER-001",
                 CreatedAt = seedDate,

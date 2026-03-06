@@ -28,7 +28,7 @@ public class OrderItemConfiguration : IEntityTypeConfiguration<OrderItem>
 
             m.Property(p => p.Currency)
                 .HasColumnName("UnitPriceCurrency")
-                .HasMaxLength(3)
+                .HasMaxLength(10)
                 .IsRequired();
         });
 

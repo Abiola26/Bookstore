@@ -1,17 +1,10 @@
 using Bookstore.Application.DTOs;
-using Bookstore.Domain.Entities;
-using Bookstore.Domain.Enum;
-using Bookstore.Infrastructure;
 using Bookstore.Infrastructure.Persistence;
-using Bookstore.Tests.Integration.Api;
 using FluentAssertions;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Newtonsoft.Json;
 using System.Net;
 using System.Net.Http.Json;
-using Xunit;
 
 namespace Bookstore.Tests.Integration.Api;
 
@@ -55,7 +48,7 @@ public class AuthApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-        var content = await response.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<AuthResponseDto>>();
+        var content = await response.Content.ReadFromJsonAsync<Application.Common.ApiResponse<AuthResponseDto>>();
         content.Should().NotBeNull();
         content!.Data!.Email.Should().Be(registerDto.Email);
         content.Data.Token.Should().BeEmpty(); // Token is empty until email confirmed
@@ -90,7 +83,7 @@ public class AuthApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<AuthResponseDto>>();
+        var content = await response.Content.ReadFromJsonAsync<Application.Common.ApiResponse<AuthResponseDto>>();
         content.Should().NotBeNull();
         content!.Data!.Token.Should().NotBeNullOrEmpty();
     }
@@ -118,7 +111,7 @@ public class AuthApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
             Password = password
         });
 
-        var authData = await loginResponse.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<AuthResponseDto>>();
+        var authData = await loginResponse.Content.ReadFromJsonAsync<Application.Common.ApiResponse<AuthResponseDto>>();
         var token = authData!.Data!.Token;
 
         var request = new HttpRequestMessage(HttpMethod.Get, "/api/auth/me");

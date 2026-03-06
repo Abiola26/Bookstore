@@ -24,7 +24,7 @@ public class WishlistController : ControllerBase
     {
         var userId = GetUserId();
         var result = await _wishlistService.AddToWishlistAsync(userId, bookId, cancellationToken);
-        
+
         if (!result.Success)
         {
             return result.StatusCode == 409 ? Conflict(result) : BadRequest(result);
@@ -38,7 +38,7 @@ public class WishlistController : ControllerBase
     {
         var userId = GetUserId();
         var result = await _wishlistService.RemoveFromWishlistAsync(userId, bookId, cancellationToken);
-        
+
         if (!result.Success)
         {
             return NotFound(result);

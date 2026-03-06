@@ -30,6 +30,10 @@ public class ReviewService : IReviewService
             if (user == null)
                 return ApiResponse<ReviewResponseDto>.ErrorResponse("User not found", null, 404);
 
+            // SECURITY FIX: Enforce email confirmation for community features
+            if (!user.EmailConfirmed)
+                return ApiResponse<ReviewResponseDto>.ErrorResponse("Email must be confirmed before posting reviews", null, 403);
+
             // Check if user already reviewed this book
             if (await _unitOfWork.Reviews.HasUserReviewedBookAsync(userId, bookId, cancellationToken))
                 return ApiResponse<ReviewResponseDto>.ErrorResponse("You have already reviewed this book", null, 400);
@@ -107,7 +111,7 @@ public class ReviewService : IReviewService
             {
                 if (dto.Rating < 1 || dto.Rating > 5)
                     return ApiResponse<ReviewResponseDto>.ErrorResponse("Rating must be between 1 and 5", null, 400);
-                
+
                 if (review.Rating != dto.Rating.Value)
                 {
                     review.Rating = dto.Rating.Value;

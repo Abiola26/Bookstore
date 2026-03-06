@@ -1,3 +1,4 @@
+using System;
 using Bookstore.Application.Common;
 using Bookstore.Application.Exceptions;
 using Microsoft.AspNetCore.Http;
@@ -43,6 +44,7 @@ public class GlobalExceptionMiddleware
             ForbiddenException ex => (403, ex.Message, new List<string>()),
             OutOfStockException ex => (400, ex.Message, new List<string>()),
             BusinessException ex => (400, ex.Message, new List<string>()),
+            ArgumentException ex => (400, ex.Message, new List<string>()),
             _ => (500, "An internal server error occurred", new List<string>())
         };
 

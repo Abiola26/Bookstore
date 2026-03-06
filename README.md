@@ -114,11 +114,21 @@ Bookstore/
 │   ├── Program.cs
 │   └── appsettings.json
 │
-├── API_DOCUMENTATION.md            # Complete API reference
-├── DATABASE_MIGRATIONS.md          # Migration guide
-├── BEST_PRACTICES.md              # Implementation best practices
-├── POSTMAN_COLLECTION.json        # API testing collection
-└── NUGET_PACKAGES.md              # Required NuGet packages
+├── docs/                           # Project documentation
+│   ├── api/
+│   │   └── POSTMAN_COLLECTION.json # API testing collection
+│   ├── history/                    # Historical records & reviews
+│   │   ├── CODE_REVIEW_SENIOR_ENGINEER.md
+│   │   └── TEST_FAILURES_ANALYSIS_AND_FIXES.md
+│   ├── summaries/                  # Feature and logic summaries
+│   │   └── SHOPPING_CART_FEATURE_SUMMARY.md
+│   ├── BEST_PRACTICES.md           # Implementation best practices
+│   ├── DATABASE_MIGRATIONS.md       # Migration guide
+│   ├── DEPLOYMENT_CHECKLIST.md      # Deployment guide
+│   ├── NUGET_PACKAGES.md           # Required NuGet packages
+│   ├── TESTING_GUIDE.md            # Testing strategies
+│   └── PROJECT_SPECIFICATION.md     # Core project requirements
+└── .editorconfig                   # Code style & cleanup rules
 ```
 
 ---
@@ -407,10 +417,11 @@ dotnet list package
 
 ## 📚 Additional Documentation
 
-- **[API Documentation](./API_DOCUMENTATION.md)** - Complete API reference
-- **[Database Migrations](./DATABASE_MIGRATIONS.md)** - Migration guide
-- **[Best Practices](./BEST_PRACTICES.md)** - Implementation guidelines
-- **[NuGet Packages](./NUGET_PACKAGES.md)** - Required dependencies
+- **[Database Migrations](./docs/DATABASE_MIGRATIONS.md)** - Migration guide
+- **[Best Practices](./docs/BEST_PRACTICES.md)** - Implementation guidelines
+- **[NuGet Packages](./docs/NUGET_PACKAGES.md)** - Required dependencies
+- **[Testing Guide](./docs/TESTING_GUIDE.md)** - Testing strategies
+- **[Frontend Strategy](./docs/FRONTEND_IMPLEMENTATION.md)** - Modern frontend architecture
 
 ---
 
@@ -503,9 +514,9 @@ For issues, questions, or suggestions:
 
 ## 📞 Contact
 
-**Project Lead**: [Your Name]
-**Email**: [your-email@example.com]
-**GitHub**: [@your-username]
+**Project Lead**: Abdulmuheez Ogunrinde
+**Email**: abdulmuheezabiola@gmail.com 
+**GitHub**: Abiola26
 
 ---
 
@@ -527,11 +538,10 @@ For issues, questions, or suggestions:
 
 ## 📌 Quick Links
 
-- [API Documentation](./API_DOCUMENTATION.md)
-- [Database Guide](./DATABASE_MIGRATIONS.md)
-- [Best Practices](./BEST_PRACTICES.md)
-- [Postman Collection](./POSTMAN_COLLECTION.json)
-- [NuGet Packages](./NUGET_PACKAGES.md)
+- [Database Guide](./docs/DATABASE_MIGRATIONS.md)
+- [Best Practices](./docs/BEST_PRACTICES.md)
+- [Postman Collection](./docs/api/POSTMAN_COLLECTION.json)
+- [NuGet Packages](./docs/NUGET_PACKAGES.md)
 
 ---
 

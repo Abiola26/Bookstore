@@ -1,5 +1,6 @@
 using Bookstore.Application.DTOs;
 using Bookstore.Application.Common;
+using Bookstore.Domain.Enum;
 
 namespace Bookstore.Application.Services;
 
@@ -13,6 +14,8 @@ public interface IBookService
     Task<ApiResponse<BookResponseDto>> CreateBookAsync(BookCreateDto dto, CancellationToken cancellationToken = default);
     Task<ApiResponse<BookResponseDto>> UpdateBookAsync(Guid id, BookUpdateDto dto, CancellationToken cancellationToken = default);
     Task<ApiResponse> DeleteBookAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<ApiResponse<BulkUploadResultDto>> BulkUploadBooksAsync(Stream csvStream, CancellationToken cancellationToken = default);
+    byte[] GetBulkUploadTemplate();
 }
 
 public interface ICategoryService
@@ -35,6 +38,7 @@ public interface IAuthenticationService
     Task<ApiResponse> RequestPasswordResetAsync(string email, CancellationToken cancellationToken = default);
     Task<ApiResponse> ResetPasswordAsync(Guid userId, string token, string newPassword, CancellationToken cancellationToken = default);
     Task<ApiResponse> ChangePasswordAsync(Guid userId, string currentPassword, string newPassword, CancellationToken cancellationToken = default);
+    string GetFrontendOrigin();
 }
 
 public interface IOrderService
@@ -72,4 +76,12 @@ public interface IShoppingCartService
     Task<ApiResponse<ShoppingCartResponseDto>> UpdateCartItemAsync(Guid userId, Guid cartItemId, UpdateCartItemDto dto, CancellationToken cancellationToken = default);
     Task<ApiResponse<ShoppingCartResponseDto>> RemoveFromCartAsync(Guid userId, Guid cartItemId, CancellationToken cancellationToken = default);
     Task<ApiResponse<ShoppingCartResponseDto>> ClearCartAsync(Guid userId, CancellationToken cancellationToken = default);
+}
+
+public interface IUserService
+{
+    Task<ApiResponse<ICollection<UserResponseDto>>> GetAllUsersAsync(CancellationToken cancellationToken = default);
+    Task<ApiResponse<UserResponseDto>> GetUserByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<ApiResponse<UserResponseDto>> UpdateUserRoleAsync(Guid id, UserRole role, CancellationToken cancellationToken = default);
+    Task<ApiResponse> DeleteUserAsync(Guid id, CancellationToken cancellationToken = default);
 }

@@ -24,7 +24,7 @@ public class ShoppingCartService : IShoppingCartService
         try
         {
             var cart = await _unitOfWork.ShoppingCarts.GetUserCartWithItemsAsync(userId, cancellationToken);
-            
+
             if (cart == null)
             {
                 // Create a new cart if it doesn't exist

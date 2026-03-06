@@ -12,4 +12,5 @@ public class EmailSettings
     public int ConfirmationTokenExpiryHours { get; set; } = 24;
     public int PasswordResetTokenExpiryHours { get; set; } = 2;
     public string? ConfirmationUrlOrigin { get; set; }
+    public string? ApiBaseUrl { get; set; }
 }

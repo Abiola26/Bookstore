@@ -1,6 +1,5 @@
 using Bookstore.Application.DTOs;
 using Bookstore.Application.Services;
-using Bookstore.Application.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -94,7 +93,7 @@ public class ReviewsController : ControllerBase
 
         var isAdmin = User.IsInRole("Admin");
         var result = await _reviewService.DeleteReviewAsync(id, userId, isAdmin, cancellationToken);
-        
+
         if (!result.Success)
             return StatusCode(result.StatusCode ?? 400, result);
 

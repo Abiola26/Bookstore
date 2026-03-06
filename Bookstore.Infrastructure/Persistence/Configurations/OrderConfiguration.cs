@@ -26,7 +26,7 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
 
             m.Property(p => p.Currency)
                 .HasColumnName("TotalAmountCurrency")
-                .HasMaxLength(3)
+                .HasMaxLength(10)
                 .IsRequired();
         });
 

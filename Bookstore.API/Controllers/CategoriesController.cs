@@ -32,7 +32,7 @@ public class CategoriesController : ControllerBase
     [HttpGet]
     [AllowAnonymous]
     [ResponseCache(Duration = ApplicationConstants.Cache.CategoryExpirationSeconds)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse<ICollection<CategoryResponseDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<ICollection<CategoryResponseDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetCategories(CancellationToken cancellationToken)
     {
         _logger.LogInformation("Get all categories");
@@ -51,8 +51,8 @@ public class CategoriesController : ControllerBase
     [HttpGet("{id:guid}")]
     [AllowAnonymous]
     [ResponseCache(Duration = ApplicationConstants.Cache.CategoryExpirationSeconds, VaryByQueryKeys = new[] { "id" })]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse<CategoryResponseDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<CategoryResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetCategoryById(Guid id, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Get category {CategoryId}", id);
@@ -73,11 +73,11 @@ public class CategoriesController : ControllerBase
     /// <response code="409">Category name already exists</response>
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse<CategoryResponseDto>), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ApiResponse<CategoryResponseDto>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> CreateCategory([FromBody] CategoryCreateDto dto, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Create category: {CategoryName}", dto.Name);
@@ -100,12 +100,12 @@ public class CategoriesController : ControllerBase
     /// <response code="409">Category name already exists</response>
     [HttpPut("{id:guid}")]
     [Authorize(Roles = "Admin")]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse<CategoryResponseDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ApiResponse<CategoryResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> UpdateCategory(Guid id, [FromBody] CategoryUpdateDto dto, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Update category {CategoryId}", id);
@@ -126,11 +126,11 @@ public class CategoriesController : ControllerBase
     /// <response code="404">Category not found</response>
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "Admin")]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(Bookstore.Application.Common.ApiResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteCategory(Guid id, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Delete category {CategoryId}", id);

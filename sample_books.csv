@@ -1,0 +1,5 @@
+Title,Author,ISBN,Price,Currency,Quantity,Description,Category,CoverImageUrl
+"The Great Gatsby","F. Scott Fitzgerald","9780743273565",15.99,USD,100,"A classic novel about the American Dream.","Classic Literature"
+"1984","George Orwell","9780451524935",12.50,USD,150,"A dystopian social science fiction novel.","Dystopian"
+"The Hobbit","J.R.R. Tolkien","9780547928227",20.00,USD,80,"A fantasy novel and children's book.","Fantasy"
+"Clean Code","Robert C. Martin","9780132350884",45.00,USD,50,"A handbook of agile software craftsmanship.","Programming"

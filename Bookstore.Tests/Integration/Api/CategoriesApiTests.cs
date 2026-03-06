@@ -1,18 +1,13 @@
 using Bookstore.Application.DTOs;
 using Bookstore.Domain.Entities;
 using Bookstore.Domain.Enum;
-using Bookstore.Infrastructure;
 using Bookstore.Infrastructure.Persistence;
-using Bookstore.Tests.Integration.Api;
 using FluentAssertions;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Newtonsoft.Json;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using Xunit;
 
 namespace Bookstore.Tests.Integration.Api;
 
@@ -35,7 +30,7 @@ public class CategoriesApiTests : IClassFixture<CustomWebApplicationFactory<Prog
         var user = await context.Users.FirstOrDefaultAsync(u => u.Email == email);
         if (user == null)
         {
-            user = new User("Category User", email, BCrypt.Net.BCrypt.HashPassword("Password123!"), 
+            user = new User("Category User", email, BCrypt.Net.BCrypt.HashPassword("Password123!"),
                 role == "Admin" ? UserRole.Admin : UserRole.User)
             {
                 EmailConfirmed = true
@@ -46,7 +41,7 @@ public class CategoriesApiTests : IClassFixture<CustomWebApplicationFactory<Prog
 
         var loginDto = new UserLoginDto { Email = email, Password = "Password123!" };
         var response = await _client.PostAsJsonAsync("/api/auth/login", loginDto);
-        var content = await response.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<AuthResponseDto>>();
+        var content = await response.Content.ReadFromJsonAsync<Application.Common.ApiResponse<AuthResponseDto>>();
         return content!.Data!.Token;
     }
 
@@ -58,7 +53,7 @@ public class CategoriesApiTests : IClassFixture<CustomWebApplicationFactory<Prog
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<ICollection<CategoryResponseDto>>>();
+        var content = await response.Content.ReadFromJsonAsync<Application.Common.ApiResponse<ICollection<CategoryResponseDto>>>();
         content.Should().NotBeNull();
     }
 
@@ -76,7 +71,7 @@ public class CategoriesApiTests : IClassFixture<CustomWebApplicationFactory<Prog
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-        var content = await response.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<CategoryResponseDto>>();
+        var content = await response.Content.ReadFromJsonAsync<Application.Common.ApiResponse<CategoryResponseDto>>();
         content!.Data!.Name.Should().Be(dto.Name);
     }
 
@@ -104,7 +99,7 @@ public class CategoriesApiTests : IClassFixture<CustomWebApplicationFactory<Prog
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var createResponse = await _client.PostAsJsonAsync("/api/categories", new CategoryCreateDto { Name = $"To Update {Guid.NewGuid()}" });
-        var category = await createResponse.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<CategoryResponseDto>>();
+        var category = await createResponse.Content.ReadFromJsonAsync<Application.Common.ApiResponse<CategoryResponseDto>>();
 
         var updateDto = new CategoryUpdateDto { Name = $"Updated-{Guid.NewGuid()}" };
 
@@ -113,7 +108,7 @@ public class CategoriesApiTests : IClassFixture<CustomWebApplicationFactory<Prog
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<CategoryResponseDto>>();
+        var content = await response.Content.ReadFromJsonAsync<Application.Common.ApiResponse<CategoryResponseDto>>();
         content!.Data!.Name.Should().Be(updateDto.Name);
     }
 
@@ -125,7 +120,7 @@ public class CategoriesApiTests : IClassFixture<CustomWebApplicationFactory<Prog
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var createResponse = await _client.PostAsJsonAsync("/api/categories", new CategoryCreateDto { Name = $"ToDelete-{Guid.NewGuid()}" });
-        var category = await createResponse.Content.ReadFromJsonAsync<Bookstore.Application.Common.ApiResponse<CategoryResponseDto>>();
+        var category = await createResponse.Content.ReadFromJsonAsync<Application.Common.ApiResponse<CategoryResponseDto>>();
 
         // Act
         var response = await _client.DeleteAsync($"/api/categories/{category!.Data!.Id}");

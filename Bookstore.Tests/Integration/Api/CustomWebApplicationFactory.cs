@@ -1,12 +1,9 @@
-using Bookstore.Infrastructure;
 using Bookstore.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.AspNetCore.RateLimiting;
-using System.Threading.RateLimiting;
 using Microsoft.Data.Sqlite;
 
 namespace Bookstore.Tests.Integration.Api;
@@ -19,7 +16,7 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
         builder.ConfigureServices(services =>
         {
             // Add MockRateLimitService
-            services.Replace(ServiceDescriptor.Singleton<Bookstore.Application.Services.IRateLimitService, Bookstore.Tests.Integration.MockRateLimitService>());
+            services.Replace(ServiceDescriptor.Singleton<Application.Services.IRateLimitService, MockRateLimitService>());
 
             // Aggressively remove all EF Core related services to avoid provider conflicts
             var efDescriptors = services.Where(d =>
@@ -41,7 +38,7 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
             // we might have removed things we need? No, repositories are Bookstore.Infrastructure.
 
             // Add DbContext using SQLite in-memory for transaction support
-            var connection = new Microsoft.Data.Sqlite.SqliteConnection("DataSource=:memory:");
+            var connection = new SqliteConnection("DataSource=:memory:");
             connection.Open();
 
             services.AddDbContext<BookStoreDbContext>(options =>

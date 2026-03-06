@@ -6,7 +6,7 @@ public class BookCreateDto
     public string Description { get; set; } = string.Empty;
     public string ISBN { get; set; } = string.Empty;
     public string? Publisher { get; set; }
-    public DateTime? PublicationDate { get; set; }
+    public DateTimeOffset? PublicationDate { get; set; }
     public decimal Price { get; set; }
     public string Currency { get; set; } = "USD";
     public string Author { get; set; } = string.Empty;
@@ -22,7 +22,7 @@ public class BookUpdateDto
     public string? Title { get; set; }
     public string? Description { get; set; }
     public string? Publisher { get; set; }
-    public DateTime? PublicationDate { get; set; }
+    public DateTimeOffset? PublicationDate { get; set; }
     public decimal? Price { get; set; }
     public string? Currency { get; set; }
     public string? Author { get; set; }
@@ -40,7 +40,7 @@ public class BookResponseDto
     public string Description { get; set; } = string.Empty;
     public string ISBN { get; set; } = string.Empty;
     public string? Publisher { get; set; }
-    public DateTime? PublicationDate { get; set; }
+    public DateTimeOffset? PublicationDate { get; set; }
     public decimal Price { get; set; }
     public string Currency { get; set; } = "USD";
     public string Author { get; set; } = string.Empty;

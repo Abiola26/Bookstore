@@ -71,7 +71,7 @@ namespace Bookstore.Infrastructure.Migrations
                     b.Property<int>("Pages")
                         .HasColumnType("integer");
 
-                    b.Property<DateTime?>("PublicationDate")
+                    b.Property<DateTimeOffset?>("PublicationDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Publisher")
@@ -105,7 +105,8 @@ namespace Bookstore.Infrastructure.Migrations
 
                     b.HasIndex("ISBN")
                         .IsUnique()
-                        .HasDatabaseName("IX_Books_ISBN");
+                        .HasDatabaseName("IX_Books_ISBN")
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.HasIndex("Title");
 
@@ -303,7 +304,7 @@ namespace Bookstore.Infrastructure.Migrations
                             IsDeleted = false,
                             Status = 4,
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            UserId = new Guid("a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d")
+                            UserId = new Guid("d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8a")
                         });
                 });
 
@@ -596,20 +597,8 @@ namespace Bookstore.Infrastructure.Migrations
                             EmailConfirmed = true,
                             FullName = "System Admin",
                             IsDeleted = false,
-                            PasswordHash = "$2a$11$8k7.Y8R3h2Bf8WvE1H6eNuI7F1Z1e1K1W1S1a1P1l1y1C1o1r1K1.",
+                            PasswordHash = "$2a$11$TYzEUYgUCR2I.TDbTxrBvuKrLZ3e6mNKKmV2oKSELgKzKTMHB.K7y",
                             Role = "Admin",
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
-                        },
-                        new
-                        {
-                            Id = new Guid("a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"),
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            Email = "user@bookstore.com",
-                            EmailConfirmed = true,
-                            FullName = "John Doe",
-                            IsDeleted = false,
-                            PasswordHash = "$2a$11$8k7.Y8R3h2Bf8WvE1H6eNuI7F1Z1e1K1W1S1a1P1l1y1C1o1r1K1.",
-                            Role = "User",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         });
                 });
@@ -674,8 +663,8 @@ namespace Bookstore.Infrastructure.Migrations
 
                             b1.Property<string>("Currency")
                                 .IsRequired()
-                                .HasMaxLength(3)
-                                .HasColumnType("character varying(3)")
+                                .HasMaxLength(10)
+                                .HasColumnType("character varying(10)")
                                 .HasColumnName("Currency");
 
                             b1.HasKey("BookId");
@@ -732,8 +721,8 @@ namespace Bookstore.Infrastructure.Migrations
 
                             b1.Property<string>("Currency")
                                 .IsRequired()
-                                .HasMaxLength(3)
-                                .HasColumnType("character varying(3)")
+                                .HasMaxLength(10)
+                                .HasColumnType("character varying(10)")
                                 .HasColumnName("TotalAmountCurrency");
 
                             b1.HasKey("OrderId");
@@ -784,8 +773,8 @@ namespace Bookstore.Infrastructure.Migrations
 
                             b1.Property<string>("Currency")
                                 .IsRequired()
-                                .HasMaxLength(3)
-                                .HasColumnType("character varying(3)")
+                                .HasMaxLength(10)
+                                .HasColumnType("character varying(10)")
                                 .HasColumnName("UnitPriceCurrency");
 
                             b1.HasKey("OrderItemId");
@@ -851,8 +840,8 @@ namespace Bookstore.Infrastructure.Migrations
 
                             b1.Property<string>("Currency")
                                 .IsRequired()
-                                .HasMaxLength(3)
-                                .HasColumnType("character varying(3)")
+                                .HasMaxLength(10)
+                                .HasColumnType("character varying(10)")
                                 .HasColumnName("TotalPrice_Currency");
 
                             b1.HasKey("ShoppingCartId");
@@ -895,8 +884,8 @@ namespace Bookstore.Infrastructure.Migrations
 
                             b1.Property<string>("Currency")
                                 .IsRequired()
-                                .HasMaxLength(3)
-                                .HasColumnType("character varying(3)")
+                                .HasMaxLength(10)
+                                .HasColumnType("character varying(10)")
                                 .HasColumnName("UnitPrice_Currency");
 
                             b1.HasKey("ShoppingCartItemId");

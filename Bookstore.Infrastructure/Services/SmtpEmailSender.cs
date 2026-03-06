@@ -1,6 +1,5 @@
 using Bookstore.Application.Services;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Configuration;
 using System.Net.Mail;
 using System.Net;
 
@@ -9,12 +8,12 @@ namespace Bookstore.Infrastructure.Services;
 public class SmtpEmailSender : IEmailSender
 {
     private readonly ILogger<SmtpEmailSender> _logger;
-    private readonly Bookstore.Application.Settings.EmailSettings _settings;
+    private readonly Application.Settings.EmailSettings _settings;
 
-    public SmtpEmailSender(ILogger<SmtpEmailSender> logger, Microsoft.Extensions.Options.IOptions<Bookstore.Application.Settings.EmailSettings> options)
+    public SmtpEmailSender(ILogger<SmtpEmailSender> logger, Microsoft.Extensions.Options.IOptions<Application.Settings.EmailSettings> options)
     {
         _logger = logger;
-        _settings = options.Value ?? new Bookstore.Application.Settings.EmailSettings();
+        _settings = options.Value ?? new Application.Settings.EmailSettings();
     }
 
     public async Task SendEmailAsync(string to, string subject, string htmlBody, CancellationToken cancellationToken = default)
@@ -48,8 +47,8 @@ public class SmtpEmailSender : IEmailSender
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send email to {To}", to);
-            // swallow exceptions to not block registration flow; optionally surface via telemetry
+            _logger.LogError(ex, "Failed to send email to {To}. Email Body for recovery:\n{Body}", to, htmlBody);
+            // swallow exceptions to not block registration flow
         }
     }
 }

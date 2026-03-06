@@ -143,7 +143,7 @@ public class UserBuilder
     private string _passwordHash = BCrypt.Net.BCrypt.HashPassword("TestPassword123!");
     private UserRole _role = UserRole.User;
     private string? _phoneNumber = "+1234567890";
-    private bool _emailConfirmed = true;
+    private readonly bool _emailConfirmed = true;
 
     public UserBuilder WithFullName(string fullName)
     {
@@ -180,7 +180,8 @@ public class UserBuilder
         return new User(_fullName, _email, _passwordHash, _role)
         {
             PhoneNumber = _phoneNumber
-            , EmailConfirmed = _emailConfirmed
+            ,
+            EmailConfirmed = _emailConfirmed
         };
     }
 }

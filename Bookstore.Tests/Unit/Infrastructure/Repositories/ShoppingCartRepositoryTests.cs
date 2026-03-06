@@ -2,11 +2,8 @@ using Bookstore.Domain.Entities;
 using Bookstore.Domain.ValueObjects;
 using Bookstore.Infrastructure.Persistence;
 using Bookstore.Infrastructure.Persistence.Repositories;
-using Bookstore.Tests.Builders;
-using Bookstore.Tests.Fixtures;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Xunit;
 
 namespace Bookstore.Tests.Unit.Infrastructure.Repositories;
 

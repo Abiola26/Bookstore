@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace Bookstore.Domain.Entities;
 
 public class Category : BaseEntity

@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Bookstore.Infrastructure.Migrations
 {
     [DbContext(typeof(BookStoreDbContext))]
-    [Migration("20260218114421_SeedInitialData")]
-    partial class SeedInitialData
+    [Migration("20260305130249_RemoveRegularUserSeed")]
+    partial class RemoveRegularUserSeed
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -35,6 +35,9 @@ namespace Bookstore.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
+
+                    b.Property<decimal>("AverageRating")
+                        .HasColumnType("numeric");
 
                     b.Property<Guid>("CategoryId")
                         .HasColumnType("uuid");
@@ -78,6 +81,9 @@ namespace Bookstore.Infrastructure.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
 
+                    b.Property<int>("ReviewCount")
+                        .HasColumnType("integer");
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
@@ -115,6 +121,7 @@ namespace Bookstore.Infrastructure.Migrations
                         {
                             Id = new Guid("b1b1b1b1-b1b1-b1b1-b1b1-b1b1b1b1b1b1"),
                             Author = "F. Scott Fitzgerald",
+                            AverageRating = 0m,
                             CategoryId = new Guid("6e6f6a7b-8c9d-0e1f-2a3b-4c5d6e7f8a9b"),
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             CreatedBy = "Seed",
@@ -123,6 +130,7 @@ namespace Bookstore.Infrastructure.Migrations
                             IsDeleted = false,
                             Language = "English",
                             Pages = 180,
+                            ReviewCount = 0,
                             Title = "The Great Gatsby",
                             TotalQuantity = 10,
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
@@ -131,6 +139,7 @@ namespace Bookstore.Infrastructure.Migrations
                         {
                             Id = new Guid("b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2"),
                             Author = "Robert C. Martin",
+                            AverageRating = 0m,
                             CategoryId = new Guid("2d2d2d1d-2d2d-2d2d-2d2d-2d2d2d2d2d2d"),
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             CreatedBy = "Seed",
@@ -139,6 +148,7 @@ namespace Bookstore.Infrastructure.Migrations
                             IsDeleted = false,
                             Language = "English",
                             Pages = 464,
+                            ReviewCount = 0,
                             Title = "Clean Code",
                             TotalQuantity = 5,
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
@@ -147,6 +157,7 @@ namespace Bookstore.Infrastructure.Migrations
                         {
                             Id = new Guid("b3b3b3b3-b3b3-b3b3-b3b3-b3b3b3b3b3b3"),
                             Author = "Stephen Hawking",
+                            AverageRating = 0m,
                             CategoryId = new Guid("3d3d3d1d-3d3d-3d3d-3d3d-3d3d3d3d3d3d"),
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             CreatedBy = "Seed",
@@ -155,6 +166,7 @@ namespace Bookstore.Infrastructure.Migrations
                             IsDeleted = false,
                             Language = "English",
                             Pages = 212,
+                            ReviewCount = 0,
                             Title = "A Brief History of Time",
                             TotalQuantity = 8,
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
@@ -294,7 +306,7 @@ namespace Bookstore.Infrastructure.Migrations
                             IsDeleted = false,
                             Status = 4,
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            UserId = new Guid("a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d")
+                            UserId = new Guid("d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8a")
                         });
                 });
 
@@ -358,6 +370,141 @@ namespace Bookstore.Infrastructure.Migrations
                             Quantity = 1,
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         });
+                });
+
+            modelBuilder.Entity("Bookstore.Domain.Entities.Review", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BookId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("integer");
+
+                    b.Property<byte[]>("RowVersion")
+                        .HasColumnType("bytea");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("BookId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("Reviews", (string)null);
+                });
+
+            modelBuilder.Entity("Bookstore.Domain.Entities.ShoppingCart", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTimeOffset>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<byte[]>("RowVersion")
+                        .HasColumnType("bytea");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("ShoppingCarts", (string)null);
+                });
+
+            modelBuilder.Entity("Bookstore.Domain.Entities.ShoppingCartItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BookId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.Property<byte[]>("RowVersion")
+                        .HasColumnType("bytea");
+
+                    b.Property<Guid>("ShoppingCartId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookId");
+
+                    b.HasIndex("ShoppingCartId", "BookId")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("ShoppingCartItems", (string)null);
                 });
 
             modelBuilder.Entity("Bookstore.Domain.Entities.User", b =>
@@ -455,19 +602,47 @@ namespace Bookstore.Infrastructure.Migrations
                             PasswordHash = "$2a$11$8k7.Y8R3h2Bf8WvE1H6eNuI7F1Z1e1K1W1S1a1P1l1y1C1o1r1K1.",
                             Role = "Admin",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
-                        },
-                        new
-                        {
-                            Id = new Guid("a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"),
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            Email = "user@bookstore.com",
-                            EmailConfirmed = true,
-                            FullName = "John Doe",
-                            IsDeleted = false,
-                            PasswordHash = "$2a$11$8k7.Y8R3h2Bf8WvE1H6eNuI7F1Z1e1K1W1S1a1P1l1y1C1o1r1K1.",
-                            Role = "User",
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         });
+                });
+
+            modelBuilder.Entity("Bookstore.Domain.Entities.WishlistItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BookId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<byte[]>("RowVersion")
+                        .HasColumnType("bytea");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookId");
+
+                    b.HasIndex("UserId", "BookId")
+                        .IsUnique();
+
+                    b.ToTable("WishlistItems");
                 });
 
             modelBuilder.Entity("Bookstore.Domain.Entities.Book", b =>
@@ -628,9 +803,133 @@ namespace Bookstore.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Bookstore.Domain.Entities.Review", b =>
+                {
+                    b.HasOne("Bookstore.Domain.Entities.Book", "Book")
+                        .WithMany("Reviews")
+                        .HasForeignKey("BookId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Bookstore.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Book");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Bookstore.Domain.Entities.ShoppingCart", b =>
+                {
+                    b.HasOne("Bookstore.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.OwnsOne("Bookstore.Domain.ValueObjects.Money", "TotalPrice", b1 =>
+                        {
+                            b1.Property<Guid>("ShoppingCartId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<decimal>("Amount")
+                                .HasPrecision(19, 2)
+                                .HasColumnType("numeric(19,2)")
+                                .HasColumnName("TotalPrice_Amount");
+
+                            b1.Property<string>("Currency")
+                                .IsRequired()
+                                .HasMaxLength(3)
+                                .HasColumnType("character varying(3)")
+                                .HasColumnName("TotalPrice_Currency");
+
+                            b1.HasKey("ShoppingCartId");
+
+                            b1.ToTable("ShoppingCarts");
+
+                            b1.WithOwner()
+                                .HasForeignKey("ShoppingCartId");
+                        });
+
+                    b.Navigation("TotalPrice")
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Bookstore.Domain.Entities.ShoppingCartItem", b =>
+                {
+                    b.HasOne("Bookstore.Domain.Entities.Book", "Book")
+                        .WithMany()
+                        .HasForeignKey("BookId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bookstore.Domain.Entities.ShoppingCart", "ShoppingCart")
+                        .WithMany("Items")
+                        .HasForeignKey("ShoppingCartId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.OwnsOne("Bookstore.Domain.ValueObjects.Money", "UnitPrice", b1 =>
+                        {
+                            b1.Property<Guid>("ShoppingCartItemId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<decimal>("Amount")
+                                .HasPrecision(19, 2)
+                                .HasColumnType("numeric(19,2)")
+                                .HasColumnName("UnitPrice_Amount");
+
+                            b1.Property<string>("Currency")
+                                .IsRequired()
+                                .HasMaxLength(3)
+                                .HasColumnType("character varying(3)")
+                                .HasColumnName("UnitPrice_Currency");
+
+                            b1.HasKey("ShoppingCartItemId");
+
+                            b1.ToTable("ShoppingCartItems");
+
+                            b1.WithOwner()
+                                .HasForeignKey("ShoppingCartItemId");
+                        });
+
+                    b.Navigation("Book");
+
+                    b.Navigation("ShoppingCart");
+
+                    b.Navigation("UnitPrice")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Bookstore.Domain.Entities.WishlistItem", b =>
+                {
+                    b.HasOne("Bookstore.Domain.Entities.Book", "Book")
+                        .WithMany()
+                        .HasForeignKey("BookId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Bookstore.Domain.Entities.User", "User")
+                        .WithMany("Wishlist")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Book");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Bookstore.Domain.Entities.Book", b =>
                 {
                     b.Navigation("OrderItems");
+
+                    b.Navigation("Reviews");
                 });
 
             modelBuilder.Entity("Bookstore.Domain.Entities.Category", b =>
@@ -643,9 +942,16 @@ namespace Bookstore.Infrastructure.Migrations
                     b.Navigation("OrderItems");
                 });
 
+            modelBuilder.Entity("Bookstore.Domain.Entities.ShoppingCart", b =>
+                {
+                    b.Navigation("Items");
+                });
+
             modelBuilder.Entity("Bookstore.Domain.Entities.User", b =>
                 {
                     b.Navigation("Orders");
+
+                    b.Navigation("Wishlist");
                 });
 #pragma warning restore 612, 618
         }

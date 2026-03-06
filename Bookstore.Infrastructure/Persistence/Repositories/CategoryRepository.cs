@@ -22,4 +22,17 @@ public class CategoryRepository : GenericRepository<Category>, ICategoryReposito
 
         return await query.AnyAsync(c => c.Name == name, cancellationToken);
     }
+
+    public async Task<ICollection<(Category Category, int BookCount)>> GetAllWithBookCountsAsync(CancellationToken cancellationToken = default)
+    {
+        var result = await _dbSet
+            .Select(c => new
+            {
+                Category = c,
+                BookCount = _context.Books.Count(b => b.CategoryId == c.Id && !b.IsDeleted)
+            })
+            .ToListAsync(cancellationToken);
+
+        return result.Select(r => (r.Category, r.BookCount)).ToList();
+    }
 }
