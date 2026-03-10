@@ -53,7 +53,7 @@ public class ReviewService : IReviewService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error adding review for book {BookId} by user {UserId}", bookId, userId);
-            return ApiResponse<ReviewResponseDto>.ErrorResponse("An error occurred while adding the review", null, 500);
+            return ApiResponse<ReviewResponseDto>.ErrorResponse($"An error occurred while adding the review: {ex.Message} {ex.StackTrace}", null, 500);
         }
     }
 

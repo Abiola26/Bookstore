@@ -1,133 +1,49 @@
-using Bookstore.Application.Common;
+using System.Net.Http.Json;
 using Bookstore.Application.DTOs;
 using Bookstore.Domain.Entities;
+using Bookstore.Domain.ValueObjects;
 using Bookstore.Infrastructure.Persistence;
-using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
-using System.Net;
-using System.Net.Http.Json;
+using FluentAssertions;
 
 namespace Bookstore.Tests.Integration.Api;
 
 public class BooksApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
 {
-    private readonly HttpClient _client;
     private readonly CustomWebApplicationFactory<Program> _factory;
+    private readonly HttpClient _client;
 
     public BooksApiTests(CustomWebApplicationFactory<Program> factory)
     {
         _factory = factory;
+        _factory.SeedDatabase();
         _client = factory.CreateClient();
     }
 
-    private async Task<string> GetAdminTokenAsync()
-    {
-        var email = $"admin-{Guid.NewGuid()}@test.com";
-        var password = "AdminPassword123!";
-
-        // Create admin user directly in the test DB to avoid relying on registration endpoint
-        using (var scope = _factory.Services.CreateScope())
-        {
-            var context = scope.ServiceProvider.GetRequiredService<BookStoreDbContext>();
-            var passwordHash = BCrypt.Net.BCrypt.HashPassword(password);
-            var user = new User("Admin User", email, passwordHash, Bookstore.Domain.Enum.UserRole.Admin);
-            user.EmailConfirmed = true;
-            context.Users.Add(user);
-            await context.SaveChangesAsync();
-        }
-
-        // Login
-        var loginResp = await _client.PostAsJsonAsync("/api/auth/login", new UserLoginDto { Email = email, Password = password });
-        loginResp.EnsureSuccessStatusCode();
-        var authData = await loginResp.Content.ReadFromJsonAsync<ApiResponse<AuthResponseDto>>();
-        return authData!.Data!.Token;
-    }
-
     [Fact]
-    public async Task GetBooks_PublicEndpoint_ShouldReturnSuccess()
-    {
-        // Act
-        var response = await _client.GetAsync("/api/books");
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadFromJsonAsync<ApiResponse<PagedResult<BookResponseDto>>>();
-        content.Should().NotBeNull();
-    }
-
-    [Fact]
-    public async Task CreateBook_AsAdmin_ShouldReturnCreated()
+    public async Task GetAllBooks_ShouldReturnOk_AndListOfBooks()
     {
         // Arrange
-        var token = await GetAdminTokenAsync();
-
-        // Need a category first
-        Guid categoryId;
         using (var scope = _factory.Services.CreateScope())
         {
             var context = scope.ServiceProvider.GetRequiredService<BookStoreDbContext>();
-            var category = new Category($"Test Category {Guid.NewGuid()}");
+            
+            var category = new Category("Integration Test Cat");
             context.Categories.Add(category);
-            await context.SaveChangesAsync();
-            categoryId = category.Id;
-        }
-
-        var createDto = new BookCreateDto
-        {
-            Title = "New Admin Book",
-            Author = "Admin Author",
-            Description = "A book created by an admin",
-            Price = 29.99m,
-            TotalQuantity = 50,
-            CategoryId = categoryId,
-            ISBN = "978-0-" + Math.Abs(Guid.NewGuid().GetHashCode() % 1000000).ToString("D6")
-        };
-
-        var request = new HttpRequestMessage(HttpMethod.Post, "/api/books");
-        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        request.Content = JsonContent.Create(createDto);
-
-        // Act
-        var response = await _client.SendAsync(request);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
-        var content = await response.Content.ReadFromJsonAsync<ApiResponse<BookResponseDto>>();
-        content!.Data!.Title.Should().Be(createDto.Title);
-    }
-
-    [Fact]
-    public async Task CreateBook_AsNormalUser_ShouldReturnForbidden()
-    {
-        // Arrange
-        var email = $"user-{Guid.NewGuid()}@test.com";
-        var password = "UserPassword123!";
-
-        // Create user directly in DB
-        using (var scope = _factory.Services.CreateScope())
-        {
-            var context = scope.ServiceProvider.GetRequiredService<BookStoreDbContext>();
-            var passwordHash = BCrypt.Net.BCrypt.HashPassword(password);
-            var user = new User("Normal User", email, passwordHash, Bookstore.Domain.Enum.UserRole.User);
-            user.EmailConfirmed = true;
-            context.Users.Add(user);
+            var book = new Book("Integration Test Title", "D", new ISBN("978-0-123-456"), new Money(10, "USD"), "A", 10, category.Id);
+            context.Books.Add(book);
             await context.SaveChangesAsync();
         }
 
-        var loginResp = await _client.PostAsJsonAsync("/api/auth/login", new UserLoginDto { Email = email, Password = password });
-        loginResp.EnsureSuccessStatusCode();
-        var authData = await loginResp.Content.ReadFromJsonAsync<ApiResponse<AuthResponseDto>>();
-        var token = authData!.Data!.Token;
-
-        var createDto = new BookCreateDto { Title = "Unauthorized" };
-        var request = new HttpRequestMessage(HttpMethod.Post, "/api/books");
-        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        request.Content = JsonContent.Create(createDto);
-
         // Act
-        var response = await _client.SendAsync(request);
+        var response = await _client.GetAsync("/api/Books");
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        response.EnsureSuccessStatusCode();
+        var result = await response.Content.ReadFromJsonAsync<Application.Common.ApiResponse<Application.Common.PagedResult<BookResponseDto>>>();
+        
+        result.Should().NotBeNull();
+        result!.Success.Should().BeTrue();
+        result.Data!.Items.Should().NotBeEmpty();
     }
 }

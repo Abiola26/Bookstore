@@ -1,37 +1,34 @@
 using Bookstore.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 
 namespace Bookstore.Tests.Fixtures;
 
-/// <summary>
-/// Provides in-memory database context for testing
-/// </summary>
 public class TestDatabaseFixture : IDisposable
 {
-    private readonly DbContextOptions<BookStoreDbContext> _options;
-    public BookStoreDbContext Context { get; }
+    private readonly SqliteConnection _connection;
+    public DbContextOptions<BookStoreDbContext> Options { get; }
 
     public TestDatabaseFixture()
     {
-        _options = new DbContextOptionsBuilder<BookStoreDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+        _connection = new SqliteConnection("DataSource=:memory:");
+        _connection.Open();
+
+        Options = new DbContextOptionsBuilder<BookStoreDbContext>()
+            .UseSqlite(_connection)
             .Options;
 
-        Context = new BookStoreDbContext(_options);
+        using var context = new BookStoreDbContext(Options);
+        context.Database.EnsureCreated();
+    }
+
+    public BookStoreDbContext CreateContext()
+    {
+        return new BookStoreDbContext(Options);
     }
 
     public void Dispose()
     {
-        Context?.Dispose();
-        GC.SuppressFinalize(this);
+        _connection.Close();
     }
-}
-
-/// <summary>
-/// Collection fixture for sharing database between tests
-/// </summary>
-[CollectionDefinition("Database collection")]
-public class DatabaseCollection : ICollectionFixture<TestDatabaseFixture>
-{
-    // This class has no code, and is never created. Its purpose is to define the collection.
 }

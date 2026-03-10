@@ -29,7 +29,7 @@ public class BookConfiguration : IEntityTypeConfiguration<Book>
 
         builder.HasIndex(b => b.ISBN)
             .IsUnique()
-            .HasFilter("\"IsDeleted\" = false")
+
             .HasDatabaseName("IX_Books_ISBN");
 
         builder.Property(b => b.Publisher)
@@ -81,7 +81,7 @@ public class BookConfiguration : IEntityTypeConfiguration<Book>
         // Audit & concurrency mappings
         builder.Property(b => b.CreatedBy).HasMaxLength(100);
         builder.Property(b => b.UpdatedBy).HasMaxLength(100);
-        builder.Property(b => b.IsDeleted).HasDefaultValue(false);
+
         builder.Property(b => b.RowVersion).IsRowVersion();
 
         // Use string-based index definition for properties that use conversions

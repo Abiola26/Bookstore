@@ -14,7 +14,7 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
         // SqlQueryRaw bypasses the ISBN value-object converter so the column is compared as a plain string.
         var id = await _context.Database
             .SqlQueryRaw<Guid>(
-                @"SELECT ""Id"" ""Value"" FROM ""Books"" WHERE ""ISBN"" = {0} AND ""IsDeleted"" = false LIMIT 1",
+                @"SELECT ""Id"" ""Value"" FROM ""Books"" WHERE ""ISBN"" = {0} LIMIT 1",
                 isbn)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -34,8 +34,21 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
 
     public async Task<ICollection<Book>> SearchByTitleAsync(string title, CancellationToken cancellationToken = default)
     {
-        return await _dbSet
-            .Where(b => b.Title.Contains(title))
+        var searchTerm = title.ToLower();
+        var query = _dbSet
+            .Where(b => b.Title.ToLower().Contains(searchTerm) || b.Author.ToLower().Contains(searchTerm));
+
+        ISBN? searchIsbn = null;
+        try 
+        { 
+            searchIsbn = new ISBN(title); 
+            query = _dbSet
+                .Where(b => b.Title.ToLower().Contains(searchTerm) || 
+                            b.Author.ToLower().Contains(searchTerm) ||
+                            b.ISBN == searchIsbn);
+        } catch { }
+
+        return await query
             .Include(b => b.Category)
             .ToListAsync(cancellationToken);
     }
@@ -60,7 +73,6 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
         var isbnObj = new ISBN(isbn);
         
         var query = _context.Books
-            .IgnoreQueryFilters()
             .AsNoTracking();
 
         if (excludeBookId.HasValue)

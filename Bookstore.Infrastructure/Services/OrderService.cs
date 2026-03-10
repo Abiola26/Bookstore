@@ -154,7 +154,7 @@ public class OrderService : IOrderService
                 }
 
                 // Validate currency consistency (Orders must be single-currency)
-                if (order.OrderItems.Count > 0 && book.Price.Currency != order.TotalAmount.Currency)
+                if (order.Items.Count > 0 && book.Price.Currency != order.TotalAmount.Currency)
                 {
                     throw new Bookstore.Application.Exceptions.BusinessException("Mixed currencies in a single order are not allowed");
                 }
@@ -267,7 +267,7 @@ public class OrderService : IOrderService
                 }
 
                 // Restore stock for all items
-                foreach (var item in order.OrderItems)
+                foreach (var item in order.Items)
                 {
                     var book = await _unitOfWork.Books.GetByIdAsync(item.BookId, cancellationToken);
                     if (book != null)
@@ -304,18 +304,18 @@ public class OrderService : IOrderService
             Id = order.Id,
             UserId = order.UserId,
             UserFullName = order.User?.FullName ?? string.Empty,
-            TotalAmount = order.TotalAmount.Amount,
-            Currency = order.TotalAmount.Currency,
+            TotalAmount = order.TotalAmount?.Amount ?? 0m,
+            Currency = order.TotalAmount?.Currency ?? string.Empty,
             Status = order.Status.ToString(),
-            Items = order.OrderItems.Select(oi => new OrderItemResponseDto
+            Items = order.Items.Select(oi => new OrderItemResponseDto
             {
                 Id = oi.Id,
                 BookId = oi.BookId,
                 BookTitle = oi.Book?.Title ?? string.Empty,
-                ISBN = oi.Book?.ISBN.ToString() ?? string.Empty,
+                ISBN = oi.Book?.ISBN?.ToString() ?? string.Empty,
                 Quantity = oi.Quantity,
-                UnitPrice = oi.UnitPrice.Amount,
-                Currency = oi.UnitPrice.Currency
+                UnitPrice = oi.UnitPrice?.Amount ?? 0m,
+                Currency = oi.UnitPrice?.Currency ?? string.Empty
             }).ToList(),
             CreatedAt = order.CreatedAt,
             UpdatedAt = order.UpdatedAt

@@ -15,7 +15,7 @@ public class Order : BaseEntity
     public OrderStatus Status { get; set; } = OrderStatus.Pending;
     public string? IdempotencyKey { get; set; }
 
-    public IReadOnlyCollection<OrderItem> OrderItems => _orderItems.AsReadOnly();
+    public IReadOnlyCollection<OrderItem> Items => _orderItems.AsReadOnly();
 
     private Order() { }
 
@@ -29,14 +29,21 @@ public class Order : BaseEntity
         if (item is null) throw new ArgumentNullException(nameof(item));
         
         _orderItems.Add(item);
-        
-        if (_orderItems.Count == 1)
-        {
-            TotalAmount = item.UnitPrice * item.Quantity;
-        }
-        else
-        {
-            TotalAmount = TotalAmount + (item.UnitPrice * item.Quantity);
-        }
+        TotalAmount = TotalAmount + (item.UnitPrice * item.Quantity);
+    }
+
+    public void AddItem(Guid bookId, int quantity, Money price)
+    {
+        if (Status != OrderStatus.Pending)
+            throw new InvalidOperationException("Cannot add items to a non-pending order");
+
+        var item = new OrderItem(Id, bookId, quantity, price);
+        _orderItems.Add(item);
+        TotalAmount = TotalAmount + (price * quantity);
+    }
+
+    public void UpdateStatus(OrderStatus status)
+    {
+        Status = status;
     }
 }

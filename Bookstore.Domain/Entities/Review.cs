@@ -26,4 +26,16 @@ public class Review : BaseEntity
         Rating = rating;
         Comment = comment;
     }
+
+    public void UpdateReview(int rating, string comment)
+    {
+        if (rating < 1 || rating > 5)
+            throw new ArgumentOutOfRangeException(nameof(rating), "Rating must be between 1 and 5.");
+
+        if (string.IsNullOrWhiteSpace(comment))
+            throw new ArgumentException("Comment cannot be empty.", nameof(comment));
+
+        Rating = rating;
+        Comment = comment;
+    }
 }

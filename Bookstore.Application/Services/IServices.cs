@@ -36,9 +36,8 @@ public interface IAuthenticationService
     Task<ApiResponse> ConfirmEmailAsync(Guid userId, string token, CancellationToken cancellationToken = default);
     Task<ApiResponse> ResendConfirmationAsync(string email, CancellationToken cancellationToken = default);
     Task<ApiResponse> RequestPasswordResetAsync(string email, CancellationToken cancellationToken = default);
-    Task<ApiResponse> ResetPasswordAsync(Guid userId, string token, string newPassword, CancellationToken cancellationToken = default);
+    Task<ApiResponse> ResetPasswordAsync(string email, string token, string newPassword, CancellationToken cancellationToken = default);
     Task<ApiResponse> ChangePasswordAsync(Guid userId, string currentPassword, string newPassword, CancellationToken cancellationToken = default);
-    string GetFrontendOrigin();
 }
 
 public interface IOrderService

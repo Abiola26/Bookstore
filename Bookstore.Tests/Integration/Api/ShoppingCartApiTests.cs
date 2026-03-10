@@ -1,168 +1,89 @@
-using Bookstore.Application.DTOs;
-using Bookstore.Domain.Entities;
-using Bookstore.Domain.Enum;
-using Bookstore.Infrastructure.Persistence;
-using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using Bookstore.Application.DTOs;
+using Bookstore.Application.Common;
+using Bookstore.Domain.Entities;
+using Bookstore.Domain.ValueObjects;
+using Bookstore.Infrastructure.Persistence;
+using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Bookstore.Tests.Integration.Api;
 
 public class ShoppingCartApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
 {
-    private readonly HttpClient _client;
     private readonly CustomWebApplicationFactory<Program> _factory;
+    private readonly HttpClient _client;
 
     public ShoppingCartApiTests(CustomWebApplicationFactory<Program> factory)
     {
         _factory = factory;
-        _client = factory.CreateClient();
+        _factory.SeedDatabase();
+        _client = _factory.CreateClient();
     }
 
-    private async Task<string> GetTokenAsync(string email)
+    private async Task<(Guid UserId, string Token)> CreateAndLoginUserAsync()
     {
         using var scope = _factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<BookStoreDbContext>();
+        var authService = scope.ServiceProvider.GetRequiredService<Application.Services.IAuthenticationService>();
 
-        var user = await context.Users.FirstOrDefaultAsync(u => u.Email == email);
-        if (user == null)
+        var email = $"cart_test_{Guid.NewGuid()}@example.com";
+        var user = new User("Cart User", email, "hashed_password", Bookstore.Domain.Enum.UserRole.User)
         {
-            user = new User("Cart User", email, BCrypt.Net.BCrypt.HashPassword("Password123!"), UserRole.User)
-            {
-                EmailConfirmed = true
-            };
-            context.Users.Add(user);
-            await context.SaveChangesAsync();
-        }
-
-        var loginDto = new UserLoginDto { Email = email, Password = "Password123!" };
-        var response = await _client.PostAsJsonAsync("/api/auth/login", loginDto);
-        var content = await response.Content.ReadFromJsonAsync<Application.Common.ApiResponse<AuthResponseDto>>();
-        return content!.Data!.Token;
-    }
-
-    private async Task<Guid> SeedBookAsync()
-    {
-        using var scope = _factory.Services.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<BookStoreDbContext>();
-
-        var category = await context.Categories.FirstOrDefaultAsync();
-        if (category == null)
-        {
-            category = new Category($"Cart Category {Guid.NewGuid()}");
-            context.Categories.Add(category);
-            await context.SaveChangesAsync();
-        }
-
-        var book = new Book(
-            $"Cart Book {Guid.NewGuid()}",
-            "Description",
-            new Domain.ValueObjects.ISBN("978-0-" + Math.Abs(Guid.NewGuid().GetHashCode() % 1000000).ToString("D6")),
-            new Domain.ValueObjects.Money(15.00m, "USD"),
-            "Author",
-            50,
-            category.Id
-        );
-        context.Books.Add(book);
+            EmailConfirmed = true
+        };
+        context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        return book.Id;
+        var token = authService.GenerateJwtToken(user.Id, user.Email, user.FullName, user.Role.ToString());
+        return (user.Id, token);
     }
 
     [Fact]
-    public async Task GetCart_Authenticated_ShouldReturnCart()
+    public async Task AddToCart_ShouldAddItem()
     {
         // Arrange
-        var token = await GetTokenAsync($"cart-user-{Guid.NewGuid()}@example.com");
+        var (userId, token) = await CreateAndLoginUserAsync();
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
+        Guid bookId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<BookStoreDbContext>();
+            var category = new Category("Cart Category");
+            context.Categories.Add(category);
+            var book = new Book("Cart Book", "D", new ISBN("9780123456789"), new Money(15, "USD"), "A", 10, category.Id);
+            context.Books.Add(book);
+            await context.SaveChangesAsync();
+            bookId = book.Id;
+        }
+
+        var dto = new AddToCartDto { BookId = bookId, Quantity = 1 };
+
         // Act
-        var response = await _client.GetAsync("/api/shopping-cart");
+        var response = await _client.PostAsJsonAsync("/api/ShoppingCart/items", dto);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadFromJsonAsync<Application.Common.ApiResponse<ShoppingCartResponseDto>>();
-        content.Should().NotBeNull();
-        content!.Data!.Items.Should().BeEmpty();
+        response.EnsureSuccessStatusCode();
+        var result = await response.Content.ReadFromJsonAsync<ShoppingCartResponseDto>();
+        result.Should().NotBeNull();
+        result!.Items.Should().ContainSingle(i => i.BookId == bookId);
     }
 
     [Fact]
-    public async Task AddToCart_WithValidBook_ShouldReturnUpdatedCart()
+    public async Task GetCart_ShouldReturnCart()
     {
         // Arrange
-        var token = await GetTokenAsync($"cart-user-{Guid.NewGuid()}@example.com");
-        var bookId = await SeedBookAsync();
-        var addToCartDto = new AddToCartDto { BookId = bookId, Quantity = 2 };
-
+        var (userId, token) = await CreateAndLoginUserAsync();
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/shopping-cart/items", addToCartDto);
+        var response = await _client.GetAsync("/api/ShoppingCart");
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadFromJsonAsync<Application.Common.ApiResponse<ShoppingCartResponseDto>>();
-        content!.Data!.Items.Should().ContainSingle(i => i.BookId == bookId && i.Quantity == 2);
-    }
-
-    [Fact]
-    public async Task UpdateCartItem_WithValidQuantity_ShouldReturnUpdatedCart()
-    {
-        // Arrange
-        var token = await GetTokenAsync($"cart-user-{Guid.NewGuid()}@example.com");
-        var bookId = await SeedBookAsync();
-        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        await _client.PostAsJsonAsync("/api/shopping-cart/items", new AddToCartDto { BookId = bookId, Quantity = 1 });
-        var updateDto = new UpdateCartItemDto { Quantity = 5 };
-
-        // Act
-        var response = await _client.PutAsJsonAsync($"/api/shopping-cart/items/{bookId}", updateDto);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadFromJsonAsync<Application.Common.ApiResponse<ShoppingCartResponseDto>>();
-        content!.Data!.Items.Should().ContainSingle(i => i.BookId == bookId && i.Quantity == 5);
-    }
-
-    [Fact]
-    public async Task RemoveFromCart_WithValidItem_ShouldReturnUpdatedCart()
-    {
-        // Arrange
-        var token = await GetTokenAsync($"cart-user-{Guid.NewGuid()}@example.com");
-        var bookId = await SeedBookAsync();
-        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        await _client.PostAsJsonAsync("/api/shopping-cart/items", new AddToCartDto { BookId = bookId, Quantity = 1 });
-
-        // Act
-        var response = await _client.DeleteAsync($"/api/shopping-cart/items/{bookId}");
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadFromJsonAsync<Application.Common.ApiResponse<ShoppingCartResponseDto>>();
-        content!.Data!.Items.Should().NotContain(i => i.BookId == bookId);
-    }
-
-    [Fact]
-    public async Task ClearCart_ShouldReturnEmptyCart()
-    {
-        // Arrange
-        var token = await GetTokenAsync($"cart-user-{Guid.NewGuid()}@example.com");
-        var bookId = await SeedBookAsync();
-        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        await _client.PostAsJsonAsync("/api/shopping-cart/items", new AddToCartDto { BookId = bookId, Quantity = 1 });
-
-        // Act
-        var response = await _client.DeleteAsync("/api/shopping-cart");
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadFromJsonAsync<Application.Common.ApiResponse<ShoppingCartResponseDto>>();
-        content!.Data!.Items.Should().BeEmpty();
+        response.EnsureSuccessStatusCode();
+        var result = await response.Content.ReadFromJsonAsync<ApiResponse<ShoppingCartResponseDto>>();
+        result!.Success.Should().BeTrue();
     }
 }

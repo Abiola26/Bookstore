@@ -122,7 +122,7 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // Add Infrastructure services
-builder.Services.AddInfrastructure(connectionString ?? throw new InvalidOperationException("Connection string is missing"));
+builder.Services.AddInfrastructure(connectionString ?? throw new InvalidOperationException("Connection string is missing"), builder.Environment.IsEnvironment("Testing"));
 
 // Configure JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -227,61 +227,64 @@ app.MapHealthChecks("/health");
 app.MapControllers();
 
 // Database initialization - Use migrations for production (CRITICAL FIX)
-using (var scope = app.Services.CreateScope())
+if (!app.Environment.IsEnvironment("Testing"))
 {
-    var dbContext = scope.ServiceProvider.GetRequiredService<Bookstore.Infrastructure.Persistence.BookStoreDbContext>();
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<Bookstore.Infrastructure.Persistence.BookStoreDbContext>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
 
-    try
-    {
-        if (app.Environment.IsDevelopment())
+        try
         {
-            // Development: Apply pending migrations (skip for InMemory)
-            if (dbContext.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory")
+            if (app.Environment.IsDevelopment())
             {
-                try
+                // Development: Apply pending migrations (skip for InMemory)
+                if (dbContext.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory")
                 {
-                    dbContext.Database.Migrate();
-                    logger.LogInformation("Database migrations applied successfully");
+                    try
+                    {
+                        dbContext.Database.Migrate();
+                        logger.LogInformation("Database migrations applied successfully");
+                    }
+                    catch (InvalidOperationException iex) when (iex.Message != null && iex.Message.Contains("PendingModelChangesWarning"))
+                    {
+                        // EF Core reports that the model has pending changes that require a new migration.
+                        logger.LogError(iex, "EF model has pending changes which require creating a new migration before applying database updates.");
+                        logger.LogError("Action required: run the EF tools to add and apply a migration:\n  dotnet tool install --global dotnet-ef --version 10.0.3 (if not installed)\n  dotnet ef migrations add YourMigrationName --project \"Bookstore.Infrastructure\" --startup-project \"Bookstore.API\" --context BookStoreDbContext\n  dotnet ef database update --project \"Bookstore.Infrastructure\" --startup-project \"Bookstore.API\" --context BookStoreDbContext");
+                        // Do not rethrow to allow the dev server to run; developer must address migrations.
+                    }
+                    catch
+                    {
+                        // rethrow other migration exceptions
+                        throw;
+                    }
                 }
-                catch (InvalidOperationException iex) when (iex.Message != null && iex.Message.Contains("PendingModelChangesWarning"))
+                else
                 {
-                    // EF Core reports that the model has pending changes that require a new migration.
-                    logger.LogError(iex, "EF model has pending changes which require creating a new migration before applying database updates.");
-                    logger.LogError("Action required: run the EF tools to add and apply a migration:\n  dotnet tool install --global dotnet-ef --version 10.0.3 (if not installed)\n  dotnet ef migrations add YourMigrationName --project \"Bookstore.Infrastructure\" --startup-project \"Bookstore.API\" --context BookStoreDbContext\n  dotnet ef database update --project \"Bookstore.Infrastructure\" --startup-project \"Bookstore.API\" --context BookStoreDbContext");
-                    // Do not rethrow to allow the dev server to run; developer must address migrations.
-                }
-                catch
-                {
-                    // rethrow other migration exceptions
-                    throw;
+                    dbContext.Database.EnsureCreated();
+                    logger.LogInformation("InMemory database created");
                 }
             }
             else
             {
-                dbContext.Database.EnsureCreated();
-                logger.LogInformation("InMemory database created");
+                // Production: Just check if database is accessible
+                // Migrations should be applied via CI/CD pipeline
+                if (dbContext.Database.CanConnect())
+                {
+                    logger.LogInformation("Database connection verified");
+                }
+                else
+                {
+                    logger.LogError("Database connection failed");
+                    throw new InvalidOperationException("Cannot connect to database");
+                }
             }
         }
-        else
+        catch (Exception ex)
         {
-            // Production: Just check if database is accessible
-            // Migrations should be applied via CI/CD pipeline
-            if (dbContext.Database.CanConnect())
-            {
-                logger.LogInformation("Database connection verified");
-            }
-            else
-            {
-                logger.LogError("Database connection failed");
-                throw new InvalidOperationException("Cannot connect to database");
-            }
+            logger.LogError(ex, "An error occurred while initializing the database");
+            throw;
         }
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "An error occurred while initializing the database");
-        throw;
     }
 }
 

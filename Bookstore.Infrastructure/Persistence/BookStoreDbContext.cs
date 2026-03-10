@@ -31,17 +31,65 @@ public class BookStoreDbContext : DbContext
             }
         }
 
+        if (Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite")
+        {
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            {
+                var properties = entityType.GetProperties()
+                    .Where(p => p.ClrType == typeof(DateTimeOffset) || p.ClrType == typeof(DateTimeOffset?));
+                foreach (var property in properties)
+                {
+                    property.SetValueConverter(new Microsoft.EntityFrameworkCore.Storage.ValueConversion.DateTimeOffsetToBinaryConverter());
+                }
+
+                // Similarly, convert decimal to double since SQLite does not support decimal
+                var decimalProperties = entityType.GetProperties()
+                    .Where(p => p.ClrType == typeof(decimal) || p.ClrType == typeof(decimal?));
+                foreach (var property in decimalProperties)
+                {
+                    property.SetValueConverter(new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<decimal, double>(
+                        v => (double)v,
+                        v => (decimal)v));
+                }
+            }
+        }
+
         // Seed initial data
         modelBuilder.Seed();
 
         base.OnModelCreating(modelBuilder);
     }
 
+    public override int SaveChanges()
+    {
+        OnBeforeSaving();
+        return base.SaveChanges();
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        OnBeforeSaving();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        OnBeforeSaving();
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        OnBeforeSaving();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    private void OnBeforeSaving()
     {
         var entries = ChangeTracker
             .Entries()
-            .Where(e => e.Entity is BaseEntity && (e.State == EntityState.Added || e.State == EntityState.Modified));
+            .Where(e => e.Entity is BaseEntity && (e.State == EntityState.Added || e.State == EntityState.Modified || e.State == EntityState.Deleted))
+            .ToList();
 
         foreach (var entityEntry in entries)
         {
@@ -53,10 +101,7 @@ public class BookStoreDbContext : DbContext
                 entity.CreatedAt = DateTimeOffset.UtcNow;
             }
         }
-
-        return base.SaveChangesAsync(cancellationToken);
     }
-
     private static void ApplyIsDeletedQueryFilter<TEntity>(ModelBuilder builder) where TEntity : BaseEntity
     {
         builder.Entity<TEntity>().HasQueryFilter(e => !e.IsDeleted);

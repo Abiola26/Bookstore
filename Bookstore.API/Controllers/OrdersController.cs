@@ -139,7 +139,7 @@ public class OrdersController : ControllerBase
     /// <response code="401">Unauthorized</response>
     /// <response code="403">Forbidden - Admin only</response>
     /// <response code="404">Order not found</response>
-    [HttpPut("{id:guid}/status")]
+    [HttpPatch("{id:guid}/status")]
     [Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(ApiResponse<OrderResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]

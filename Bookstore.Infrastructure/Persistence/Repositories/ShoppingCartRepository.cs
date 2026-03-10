@@ -13,7 +13,7 @@ public class ShoppingCartRepository : GenericRepository<ShoppingCart>, IShopping
     public async Task<ShoppingCart?> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         return await _context.ShoppingCarts
-            .FirstOrDefaultAsync(sc => sc.UserId == userId && !sc.IsDeleted, cancellationToken);
+            .FirstOrDefaultAsync(sc => sc.UserId == userId, cancellationToken);
     }
 
     public async Task<ShoppingCart?> GetWithItemsAsync(Guid cartId, CancellationToken cancellationToken = default)
@@ -21,7 +21,7 @@ public class ShoppingCartRepository : GenericRepository<ShoppingCart>, IShopping
         return await _context.ShoppingCarts
             .Include(sc => sc.Items)
             .ThenInclude(sci => sci.Book)
-            .FirstOrDefaultAsync(sc => sc.Id == cartId && !sc.IsDeleted, cancellationToken);
+            .FirstOrDefaultAsync(sc => sc.Id == cartId, cancellationToken);
     }
 
     public async Task<ShoppingCart?> GetUserCartWithItemsAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -29,6 +29,6 @@ public class ShoppingCartRepository : GenericRepository<ShoppingCart>, IShopping
         return await _context.ShoppingCarts
             .Include(sc => sc.Items)
             .ThenInclude(sci => sci.Book)
-            .FirstOrDefaultAsync(sc => sc.UserId == userId && !sc.IsDeleted, cancellationToken);
+            .FirstOrDefaultAsync(sc => sc.UserId == userId, cancellationToken);
     }
 }

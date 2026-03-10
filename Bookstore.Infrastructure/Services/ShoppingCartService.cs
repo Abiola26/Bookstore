@@ -192,8 +192,8 @@ public class ShoppingCartService : IShoppingCartService
         {
             Id = cart.Id,
             UserId = cart.UserId,
-            TotalPrice = cart.TotalPrice.Amount,
-            Currency = cart.TotalPrice.Currency,
+            TotalPrice = cart.TotalPrice?.Amount ?? 0m,
+            Currency = cart.TotalPrice?.Currency ?? string.Empty,
             ItemCount = cart.GetItemCount(),
             IsEmpty = cart.IsEmpty,
             Items = cart.Items.Select(item => new ShoppingCartItemResponseDto
@@ -201,10 +201,10 @@ public class ShoppingCartService : IShoppingCartService
                 Id = item.Id,
                 BookId = item.BookId,
                 BookTitle = item.Book?.Title ?? string.Empty,
-                ISBN = item.Book?.ISBN.Value ?? string.Empty,
+                ISBN = item.Book?.ISBN?.Value ?? string.Empty,
                 Quantity = item.Quantity,
-                UnitPrice = item.UnitPrice.Amount,
-                Currency = item.UnitPrice.Currency
+                UnitPrice = item.UnitPrice?.Amount ?? 0m,
+                Currency = item.UnitPrice?.Currency ?? string.Empty
             }).ToList(),
             LastModified = cart.LastModified
         };

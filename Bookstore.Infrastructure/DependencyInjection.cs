@@ -10,15 +10,18 @@ namespace Bookstore.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, string connectionString)
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, string connectionString, bool isTesting = false)
     {
-        // Database - PostgreSQL Configuration
-        services.AddDbContext<BookStoreDbContext>(options =>
-            options.UseNpgsql(connectionString, sqlOptions =>
-            {
-                sqlOptions.CommandTimeout(30);
-                sqlOptions.EnableRetryOnFailure(3, TimeSpan.FromSeconds(10), null);
-            }));
+        // Database Configuration
+        if (!isTesting)
+        {
+            services.AddDbContext<BookStoreDbContext>(options =>
+                options.UseNpgsql(connectionString, sqlOptions =>
+                {
+                    sqlOptions.CommandTimeout(30);
+                    sqlOptions.EnableRetryOnFailure(3, TimeSpan.FromSeconds(10), null);
+                }));
+        }
 
         // Repositories
         services.AddScoped<IUnitOfWork, UnitOfWork>();

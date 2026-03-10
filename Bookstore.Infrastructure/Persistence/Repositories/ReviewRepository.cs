@@ -33,10 +33,14 @@ public class ReviewRepository : GenericRepository<Review>, IReviewRepository
 
     public async Task<decimal> GetAverageRatingAsync(Guid bookId, CancellationToken cancellationToken = default)
     {
-        return await _dbSet
+        var ratings = await _dbSet
             .Where(r => r.BookId == bookId)
-            .Select(r => (decimal)r.Rating)
-            .DefaultIfEmpty(0)
-            .AverageAsync(cancellationToken);
+            .Select(r => r.Rating)
+            .ToListAsync(cancellationToken);
+
+        if (ratings.Count == 0)
+            return 0;
+
+        return (decimal)ratings.Average();
     }
 }

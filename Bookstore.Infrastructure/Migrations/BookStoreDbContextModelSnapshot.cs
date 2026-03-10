@@ -60,9 +60,7 @@ namespace Bookstore.Infrastructure.Migrations
                         .HasColumnName("ISBN");
 
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Language")
                         .HasMaxLength(50)
@@ -105,8 +103,7 @@ namespace Bookstore.Infrastructure.Migrations
 
                     b.HasIndex("ISBN")
                         .IsUnique()
-                        .HasDatabaseName("IX_Books_ISBN")
-                        .HasFilter("\"IsDeleted\" = false");
+                        .HasDatabaseName("IX_Books_ISBN");
 
                     b.HasIndex("Title");
 
@@ -302,7 +299,7 @@ namespace Bookstore.Infrastructure.Migrations
                             CreatedBy = "Seed",
                             IdempotencyKey = "SEED-ORDER-001",
                             IsDeleted = false,
-                            Status = 4,
+                            Status = 5,
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             UserId = new Guid("d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8a")
                         });
@@ -756,7 +753,7 @@ namespace Bookstore.Infrastructure.Migrations
                         .IsRequired();
 
                     b.HasOne("Bookstore.Domain.Entities.Order", "Order")
-                        .WithMany("OrderItems")
+                        .WithMany("Items")
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -937,7 +934,7 @@ namespace Bookstore.Infrastructure.Migrations
 
             modelBuilder.Entity("Bookstore.Domain.Entities.Order", b =>
                 {
-                    b.Navigation("OrderItems");
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("Bookstore.Domain.Entities.ShoppingCart", b =>

@@ -12,7 +12,7 @@ public class OrderRepository : GenericRepository<Order>, IOrderRepository
     {
         return await _dbSet
             .Where(o => o.UserId == userId)
-            .Include(o => o.OrderItems)
+            .Include(o => o.Items)
             .ThenInclude(oi => oi.Book)
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -22,7 +22,7 @@ public class OrderRepository : GenericRepository<Order>, IOrderRepository
     {
         return await _dbSet
             .Where(o => o.UserId == userId)
-            .Include(o => o.OrderItems)
+            .Include(o => o.Items)
             .ThenInclude(oi => oi.Book)
             .OrderByDescending(o => o.CreatedAt)
             .Skip((pageNumber - 1) * pageSize)
@@ -38,7 +38,7 @@ public class OrderRepository : GenericRepository<Order>, IOrderRepository
     public async Task<Order?> GetWithItemsAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
         return await _dbSet
-            .Include(o => o.OrderItems)
+            .Include(o => o.Items)
             .ThenInclude(oi => oi.Book)
             .Include(o => o.User)
             .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
@@ -47,7 +47,7 @@ public class OrderRepository : GenericRepository<Order>, IOrderRepository
     public async Task<ICollection<Order>> GetAllOrdersPaginatedAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default)
     {
         return await _dbSet
-            .Include(o => o.OrderItems)
+            .Include(o => o.Items)
             .ThenInclude(oi => oi.Book)
             .Include(o => o.User)
             .OrderByDescending(o => o.CreatedAt)
@@ -64,7 +64,7 @@ public class OrderRepository : GenericRepository<Order>, IOrderRepository
     public async Task<Order?> GetByIdempotencyKeyAsync(string key, CancellationToken cancellationToken = default)
     {
         return await _dbSet
-            .Include(o => o.OrderItems)
+            .Include(o => o.Items)
             .ThenInclude(oi => oi.Book)
             .FirstOrDefaultAsync(o => o.IdempotencyKey == key, cancellationToken);
     }

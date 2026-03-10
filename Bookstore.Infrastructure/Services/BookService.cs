@@ -9,6 +9,8 @@ using Bookstore.Domain.ValueObjects;
 using CsvHelper;
 using CsvHelper.Configuration;
 using System.Globalization;
+using Microsoft.EntityFrameworkCore;
+using Bookstore.Infrastructure.Persistence;
 
 namespace Bookstore.Infrastructure.Services;
 
@@ -19,10 +21,13 @@ public class BookService : IBookService
     private readonly BookCreateDtoValidator _createValidator;
     private readonly BookUpdateDtoValidator _updateValidator;
 
-    public BookService(IUnitOfWork unitOfWork, ILogger<BookService> logger)
+    private readonly BookStoreDbContext _context;
+
+    public BookService(IUnitOfWork unitOfWork, ILogger<BookService> logger, BookStoreDbContext context)
     {
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _context = context;
         _createValidator = new BookCreateDtoValidator();
         _updateValidator = new BookUpdateDtoValidator();
     }
@@ -359,6 +364,12 @@ public class BookService : IBookService
             if (book == null)
                 return ApiResponse.ErrorResponse("Book not found", null, 404);
 
+            // Proactively delete related records to handle foreign key constraints
+            await _context.ShoppingCartItems.Where(x => x.BookId == id).ExecuteDeleteAsync(cancellationToken);
+            await _context.WishlistItems.Where(x => x.BookId == id).ExecuteDeleteAsync(cancellationToken);
+            await _context.Reviews.Where(x => x.BookId == id).ExecuteDeleteAsync(cancellationToken);
+            await _context.OrderItems.Where(x => x.BookId == id).ExecuteDeleteAsync(cancellationToken);
+
             _unitOfWork.Books.Delete(book);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -367,7 +378,7 @@ public class BookService : IBookService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting book {BookId}", id);
-            return ApiResponse.ErrorResponse("An error occurred while deleting the book", null, 500);
+            return ApiResponse.ErrorResponse($"An error occurred while deleting the book: {ex.Message}", null, 500);
         }
     }
 
@@ -378,11 +389,11 @@ public class BookService : IBookService
             Id = book.Id,
             Title = book.Title,
             Description = book.Description,
-            ISBN = book.ISBN.ToString(),
+            ISBN = book.ISBN?.ToString() ?? string.Empty,
             Publisher = book.Publisher,
             PublicationDate = book.PublicationDate,
-            Price = book.Price.Amount,
-            Currency = book.Price.Currency,
+            Price = book.Price?.Amount ?? 0m,
+            Currency = book.Price?.Currency ?? string.Empty,
             Author = book.Author,
             Pages = book.Pages,
             Language = book.Language,

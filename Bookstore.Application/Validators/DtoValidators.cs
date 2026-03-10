@@ -68,7 +68,7 @@ public class UserRegisterDtoValidator
             errors.Add("Email is required, must be valid, and must not exceed 256 characters.");
 
         // Stronger password policy:
-        // - Minimum length 12
+        // - Minimum length 6
         // - At least one uppercase letter
         // - At least one lowercase letter
         // - At least one digit

@@ -8,6 +8,7 @@ using Bookstore.Domain.Entities;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using System.Security.Cryptography;
 using Microsoft.IdentityModel.Tokens;
 using Bookstore.Domain.Enum;
 
@@ -63,10 +64,10 @@ public class AuthenticationService : IAuthenticationService
         {
             var user = await _unitOfWork.Users.GetByEmailAsync(email, cancellationToken);
             if (user == null)
-                return ApiResponse.SuccessResponse("If the email exists, a password reset link will be sent.");
+                return ApiResponse.SuccessResponse("If the email exists, a password reset code will be sent.");
 
-            // Generate reset token (Alphanumeric for URL safety)
-            var resetToken = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
+            // Generate 6-digit OTP
+            var resetToken = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
             user.PasswordResetToken = resetToken;
             var expiryHours = _emailOptions.Value?.PasswordResetTokenExpiryHours ?? 2;
             user.PasswordResetTokenExpiresAt = DateTimeOffset.UtcNow.AddHours(expiryHours);
@@ -74,22 +75,20 @@ public class AuthenticationService : IAuthenticationService
             _unitOfWork.Users.Update(user);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            var frontendOrigin = _emailOptions.Value?.ConfirmationUrlOrigin ?? string.Empty;
-            var resetPath = $"/reset-password?userId={user.Id}&token={Uri.EscapeDataString(resetToken)}";
-            var resetUrl = string.IsNullOrEmpty(frontendOrigin) ? resetPath : new Uri(new Uri(frontendOrigin), resetPath).ToString();
-
             var content = $@"
                 <p>Hi <strong>{user.FullName}</strong>,</p>
                 <p>We received a request to reset your password. If you didn't make this request, you can safely ignore this email.</p>
-                <p>To reset your password, please click the button below within the next <strong>{expiryHours} hours</strong>:</p>
+                <p>To reset your password, please use the following 6-digit authorization code within the next <strong>{expiryHours} hours</strong>:</p>
                 <div style='text-align: center; margin: 30px 0;'>
-                    <a href='{resetUrl}' style='background-color: #dc3545; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;'>Reset Password</a>
+                    <div style='background-color: #f8f9fa; color: #333; padding: 15px 30px; border-radius: 8px; font-weight: bold; font-size: 28px; display: inline-block; letter-spacing: 5px; border: 2px dashed #dc3545;'>
+                        {resetToken}
+                    </div>
                 </div>
-                <p style='color: #666; font-size: 14px;'>If the button above doesn't work, copy and paste this link: <br/>{resetUrl}</p>";
+                <p style='color: #666; font-size: 14px;'>Enter this code on the password reset page to choose a new password.</p>";
 
             await _emailSender.SendEmailAsync(user.Email, "Reset Your Password - Bookstore", GetEmailShell("Reset Your Password", content), cancellationToken);
 
-            return ApiResponse.SuccessResponse("If the email exists, a password reset link will be sent.");
+            return ApiResponse.SuccessResponse("If the email exists, a password reset code will be sent.");
         }
         catch (Exception ex)
         {
@@ -98,19 +97,19 @@ public class AuthenticationService : IAuthenticationService
         }
     }
 
-    public async Task<ApiResponse> ResetPasswordAsync(Guid userId, string token, string newPassword, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse> ResetPasswordAsync(string email, string token, string newPassword, CancellationToken cancellationToken = default)
     {
         try
         {
-            var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
+            var user = await _unitOfWork.Users.GetByEmailAsync(email, cancellationToken);
             if (user == null)
                 return ApiResponse.ErrorResponse("User not found", null, 404);
 
             if (string.IsNullOrEmpty(user.PasswordResetToken) || user.PasswordResetTokenExpiresAt == null)
-                return ApiResponse.ErrorResponse("Invalid or expired reset token", null, 400);
+                return ApiResponse.ErrorResponse("Invalid or expired reset code", null, 400);
 
             if (user.PasswordResetToken != token || user.PasswordResetTokenExpiresAt < DateTimeOffset.UtcNow)
-                return ApiResponse.ErrorResponse("Invalid or expired reset token", null, 400);
+                return ApiResponse.ErrorResponse("Invalid or expired reset code", null, 400);
 
             // Validate new password
             var errors = Bookstore.Application.Validators.PasswordPolicy.Validate(newPassword);
@@ -128,7 +127,7 @@ public class AuthenticationService : IAuthenticationService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error resetting password for user {UserId}", userId);
+            _logger.LogError(ex, "Error resetting password for user with email {Email}", email);
             return ApiResponse.ErrorResponse("An error occurred while resetting password", null, 500);
         }
     }
@@ -182,8 +181,8 @@ public class AuthenticationService : IAuthenticationService
             var user = new User(dto.FullName, dto.Email, passwordHash, UserRole.User);
             user.PhoneNumber = dto.PhoneNumber;
 
-            // Generate email confirmation token (Alphanumeric for URL safety)
-            var confirmationToken = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
+            // Generate a 6-digit OTP for email confirmation
+            var confirmationToken = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
             user.EmailConfirmationToken = confirmationToken;
             var expiryHours = _emailOptions.Value?.ConfirmationTokenExpiryHours ?? 24;
             user.EmailConfirmationTokenExpiresAt = DateTimeOffset.UtcNow.AddHours(expiryHours);
@@ -192,19 +191,16 @@ public class AuthenticationService : IAuthenticationService
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // Send confirmation email
-            // Send confirmation email directly to the backend
-            var apiBaseUrl = _emailOptions.Value?.ApiBaseUrl ?? string.Empty;
-            var confirmPath = $"/api/Email/confirm?userId={user.Id}&token={Uri.EscapeDataString(confirmationToken)}";
-            var confirmUrl = string.IsNullOrEmpty(apiBaseUrl) ? confirmPath : new Uri(new Uri(apiBaseUrl), confirmPath).ToString();
-
             var content = $@"
                 <p>Hi <strong>{user.FullName}</strong>,</p>
                 <p>Welcome to our community of book lovers! We're excited to have you on board.</p>
-                <p>To get started, please confirm your email address by clicking the button below:</p>
+                <p>To get started, please confirm your email address by using the following 6-digit authorization code:</p>
                 <div style='text-align: center; margin: 30px 0;'>
-                    <a href='{confirmUrl}' style='background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;'>Confirm Email Address</a>
+                    <div style='background-color: #f8f9fa; color: #333; padding: 15px 30px; border-radius: 8px; font-weight: bold; font-size: 28px; display: inline-block; letter-spacing: 5px; border: 2px dashed #007bff;'>
+                        {confirmationToken}
+                    </div>
                 </div>
-                <p style='color: #666; font-size: 14px;'>If the button doesn't work, copy and paste this link: <br/>{confirmUrl}</p>";
+                <p style='color: #666; font-size: 14px;'>This code will expire in {expiryHours} hours.</p>";
 
             await _emailSender.SendEmailAsync(user.Email, "Confirm your email - Bookstore", GetEmailShell("Welcome to Bookstore!", content), cancellationToken);
 
@@ -239,8 +235,8 @@ public class AuthenticationService : IAuthenticationService
             if (user.EmailConfirmed)
                 return ApiResponse.SuccessResponse("Email already confirmed");
 
-            // Generate new token and update expiry (Alphanumeric for URL safety)
-            var confirmationToken = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
+            // Generate new 6-digit OTP and update expiry
+            var confirmationToken = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
             user.EmailConfirmationToken = confirmationToken;
             var expiryHours = _emailOptions.Value?.ConfirmationTokenExpiryHours ?? 24;
             user.EmailConfirmationTokenExpiresAt = DateTimeOffset.UtcNow.AddHours(expiryHours);
@@ -248,17 +244,17 @@ public class AuthenticationService : IAuthenticationService
             _unitOfWork.Users.Update(user);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // Send confirmation email directly to the backend
-            var apiBaseUrl = _emailOptions.Value?.ApiBaseUrl ?? string.Empty;
-            var confirmPath = $"/api/Email/confirm?userId={user.Id}&token={Uri.EscapeDataString(confirmationToken)}";
-            var confirmUrl = string.IsNullOrEmpty(apiBaseUrl) ? confirmPath : new Uri(new Uri(apiBaseUrl), confirmPath).ToString();
+            // Send confirmation email
             var content = $@"
                 <p>Hi <strong>{user.FullName}</strong>,</p>
-                <p>You requested a new confirmation link. Please click the button below to verify your email address:</p>
+                <p>You requested a new confirmation code for your email address.</p>
+                <p>Please use the following 6-digit authorization code to confirm your email:</p>
                 <div style='text-align: center; margin: 30px 0;'>
-                    <a href='{confirmUrl}' style='background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;'>Confirm Email Address</a>
+                    <div style='background-color: #f8f9fa; color: #333; padding: 15px 30px; border-radius: 8px; font-weight: bold; font-size: 28px; display: inline-block; letter-spacing: 5px; border: 2px dashed #007bff;'>
+                        {confirmationToken}
+                    </div>
                 </div>
-                <p style='color: #666; font-size: 14px;'>If the button doesn't work, copy and paste this link: <br/>{confirmUrl}</p>";
+                <p style='color: #666; font-size: 14px;'>This code will expire in {expiryHours} hours.</p>";
 
             await _emailSender.SendEmailAsync(user.Email, "Confirm your email - Bookstore", GetEmailShell("Email Confirmation", content), cancellationToken);
 
@@ -397,11 +393,6 @@ public class AuthenticationService : IAuthenticationService
     }
 
     // Password hashing/verification is delegated to IPasswordHasher implementation
-
-    public string GetFrontendOrigin()
-    {
-        return _emailOptions.Value?.ConfirmationUrlOrigin ?? "http://localhost:3000";
-    }
 
     public string GenerateJwtToken(Guid userId, string email, string fullName, string role)
     {
