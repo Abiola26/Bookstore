@@ -48,7 +48,7 @@ public static class DependencyInjection
         services.AddScoped<IWishlistService, WishlistService>();
         services.AddScoped<IShoppingCartService, ShoppingCartService>();
         services.AddScoped<IUserService, UserService>();
-        services.AddScoped<IFileStorageService, LocalFileStorageService>();
+        services.AddHttpClient<IPaystackService, PaystackService>();
 
         return services;
     }

@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Bookstore.Application.Repositories;
 using Bookstore.Application.Validators;
 using Bookstore.Domain.Entities;
+using Bookstore.Domain.ValueObjects;
 using Bookstore.Domain.Enum;
 
 namespace Bookstore.Infrastructure.Services;
@@ -13,12 +14,14 @@ public class OrderService : IOrderService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<OrderService> _logger;
+    private readonly IPaystackService _paystackService;
     private readonly OrderCreateDtoValidator _createValidator;
 
-    public OrderService(IUnitOfWork unitOfWork, ILogger<OrderService> logger)
+    public OrderService(IUnitOfWork unitOfWork, ILogger<OrderService> logger, IPaystackService paystackService)
     {
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _paystackService = paystackService;
         _createValidator = new OrderCreateDtoValidator();
     }
 
@@ -142,7 +145,10 @@ public class OrderService : IOrderService
         {
             var order = new Order(userId)
             {
-                IdempotencyKey = idempotencyKey
+                IdempotencyKey = idempotencyKey,
+                ShippingAddress = dto.ShippingAddress,
+                PaymentMethod = Enum.Parse<PaymentMethod>(dto.PaymentMethod, true),
+                ShippingFee = new Money(5.00m, "USD") // Flat fee for now
             };
 
             foreach (var itemDto in dto.Items)
@@ -297,6 +303,39 @@ public class OrderService : IOrderService
         }
     }
 
+    public async Task<ApiResponse<OrderResponseDto>> VerifyPaystackPaymentAsync(Guid orderId, string reference, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var order = await _unitOfWork.Orders.GetWithItemsAsync(orderId, cancellationToken);
+            if (order == null)
+                return ApiResponse<OrderResponseDto>.ErrorResponse("Order not found", null, 404);
+
+            if (order.IsPaid)
+                return ApiResponse<OrderResponseDto>.SuccessResponse(MapToDto(order), "Order is already paid");
+
+            var verification = await _paystackService.VerifyTransactionAsync(reference);
+            if (verification.Success)
+            {
+                order.IsPaid = true;
+                order.PaymentReference = reference;
+                order.Status = OrderStatus.Paid;
+                
+                _unitOfWork.Orders.Update(order);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                
+                return ApiResponse<OrderResponseDto>.SuccessResponse(MapToDto(order), "Payment verified successfully");
+            }
+
+            return ApiResponse<OrderResponseDto>.ErrorResponse(verification.Message ?? "Payment verification failed", null, 400);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error verifying payment for order {OrderId}", orderId);
+            return ApiResponse<OrderResponseDto>.ErrorResponse("An error occurred during payment verification", null, 500);
+        }
+    }
+
     private static OrderResponseDto MapToDto(Order order)
     {
         return new OrderResponseDto
@@ -305,6 +344,11 @@ public class OrderService : IOrderService
             UserId = order.UserId,
             UserFullName = order.User?.FullName ?? string.Empty,
             TotalAmount = order.TotalAmount?.Amount ?? 0m,
+            ShippingFee = order.ShippingFee?.Amount ?? 0m,
+            ShippingAddress = order.ShippingAddress,
+            PaymentMethod = order.PaymentMethod.ToString(),
+            PaymentReference = order.PaymentReference,
+            IsPaid = order.IsPaid,
             Currency = order.TotalAmount?.Currency ?? string.Empty,
             Status = order.Status.ToString(),
             Items = order.Items.Select(oi => new OrderItemResponseDto

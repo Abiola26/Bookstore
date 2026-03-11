@@ -49,6 +49,7 @@ public interface IOrderService
     Task<ApiResponse<OrderResponseDto>> CreateOrderAsync(Guid userId, OrderCreateDto dto, string? idempotencyKey = null, CancellationToken cancellationToken = default);
     Task<ApiResponse<OrderResponseDto>> UpdateOrderStatusAsync(Guid orderId, OrderUpdateStatusDto dto, CancellationToken cancellationToken = default);
     Task<ApiResponse> CancelOrderAsync(Guid orderId, CancellationToken cancellationToken = default);
+    Task<ApiResponse<OrderResponseDto>> VerifyPaystackPaymentAsync(Guid orderId, string reference, CancellationToken cancellationToken = default);
 }
 
 public interface IReviewService

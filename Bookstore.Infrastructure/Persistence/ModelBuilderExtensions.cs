@@ -117,6 +117,9 @@ public static class ModelBuilderExtensions
                 Id = sampleOrderId,
                 UserId = adminUserId,
                 Status = OrderStatus.Completed,
+                PaymentMethod = PaymentMethod.CashOnDelivery,
+                ShippingAddress = "123 Seed St, Bookstore City",
+                IsPaid = false,
                 IdempotencyKey = "SEED-ORDER-001",
                 CreatedAt = seedDate,
                 UpdatedAt = seedDate,
@@ -127,6 +130,10 @@ public static class ModelBuilderExtensions
 
         modelBuilder.Entity<Order>().OwnsOne(o => o.TotalAmount).HasData(
             new { OrderId = sampleOrderId, Amount = 15.99m, Currency = "USD" }
+        );
+
+        modelBuilder.Entity<Order>().OwnsOne(o => o.ShippingFee).HasData(
+            new { OrderId = sampleOrderId, Amount = 0.00m, Currency = "USD" }
         );
 
         // Sample OrderItem

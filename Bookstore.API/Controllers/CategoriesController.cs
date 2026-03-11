@@ -31,7 +31,6 @@ public class CategoriesController : ControllerBase
     /// <response code="200">Categories retrieved successfully</response>
     [HttpGet]
     [AllowAnonymous]
-    [ResponseCache(Duration = ApplicationConstants.Cache.CategoryExpirationSeconds)]
     [ProducesResponseType(typeof(ApiResponse<ICollection<CategoryResponseDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetCategories(CancellationToken cancellationToken)
     {
@@ -50,7 +49,6 @@ public class CategoriesController : ControllerBase
     /// <response code="404">Category not found</response>
     [HttpGet("{id:guid}")]
     [AllowAnonymous]
-    [ResponseCache(Duration = ApplicationConstants.Cache.CategoryExpirationSeconds, VaryByQueryKeys = new[] { "id" })]
     [ProducesResponseType(typeof(ApiResponse<CategoryResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetCategoryById(Guid id, CancellationToken cancellationToken)

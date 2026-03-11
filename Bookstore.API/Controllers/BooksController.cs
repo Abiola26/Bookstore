@@ -36,7 +36,6 @@ public class BooksController : ControllerBase
     /// <response code="400">Invalid pagination parameters</response>
     [HttpGet]
     [AllowAnonymous]
-    [ResponseCache(Duration = ApplicationConstants.Cache.DefaultExpirationSeconds, VaryByQueryKeys = new[] { "pageNumber", "pageSize" })]
     [ProducesResponseType(typeof(ApiResponse<PagedResult<BookResponseDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> GetBooks([FromQuery] int pageNumber = ApplicationConstants.Pagination.DefaultPageNumber, [FromQuery] int pageSize = ApplicationConstants.Pagination.DefaultPageSize, CancellationToken cancellationToken = default)
@@ -56,7 +55,6 @@ public class BooksController : ControllerBase
     /// <response code="404">Book not found</response>
     [HttpGet("{id:guid}")]
     [AllowAnonymous]
-    [ResponseCache(Duration = ApplicationConstants.Cache.DefaultExpirationSeconds, VaryByQueryKeys = new[] { "id" })]
     [ProducesResponseType(typeof(ApiResponse<BookResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetBookById(Guid id, CancellationToken cancellationToken)
@@ -104,7 +102,6 @@ public class BooksController : ControllerBase
     /// <response code="404">Category not found</response>
     [HttpGet("category/{categoryId:guid}")]
     [AllowAnonymous]
-    [ResponseCache(Duration = ApplicationConstants.Cache.DefaultExpirationSeconds, VaryByQueryKeys = new[] { "categoryId", "pageNumber", "pageSize" })]
     [ProducesResponseType(typeof(ApiResponse<PagedResult<BookResponseDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]

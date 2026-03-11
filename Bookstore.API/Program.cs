@@ -1,228 +1,195 @@
+using Bookstore.Application.Common;
+using Bookstore.Application.Settings;
+using Bookstore.Infrastructure.Persistence;
 using Bookstore.Infrastructure;
-using Bookstore.Infrastructure.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-
 using Microsoft.OpenApi.Models;
-using Bookstore.Application.Settings;
+using System.Reflection;
 using System.Threading.RateLimiting;
-using Microsoft.EntityFrameworkCore;  // For migrations
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configuration
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-var jwtKey = builder.Configuration["JWT:Key"];
-var jwtIssuer = builder.Configuration["JWT:Issuer"];
-var jwtAudience = builder.Configuration["JWT:Audience"];
-
-// Bind strongly-typed settings
-builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JWT"));
-builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
-builder.Services.Configure<FileSettings>(builder.Configuration.GetSection("FileSettings"));
-
-// Validate options and fail fast for critical settings
-builder.Services.AddOptions<JwtSettings>()
-    .Bind(builder.Configuration.GetSection("JWT"))
-    .Validate(s => !string.IsNullOrEmpty(s.Key) && !string.IsNullOrEmpty(s.Issuer) && !string.IsNullOrEmpty(s.Audience), "JWT settings are required")
-    .ValidateOnStart();
-
-builder.Services.AddOptions<EmailSettings>()
-    .Bind(builder.Configuration.GetSection("Email"))
-    .Validate(s => string.IsNullOrEmpty(s.SmtpHost) || !string.IsNullOrEmpty(s.FromAddress), "If SMTP is configured, FromAddress is required")
-    .ValidateOnStart();
-
-// Rate limiting for sensitive endpoints (SECURITY)
-builder.Services.AddRateLimiter(options =>
-{
-    options.RejectionStatusCode = 429;
-
-    // Email endpoints: Very restrictive
-    options.AddPolicy("emailPolicy", context =>
-        RateLimitPartition.GetFixedWindowLimiter(partitionKey: "emailPolicy", factory: _ => new FixedWindowRateLimiterOptions
-        {
-            PermitLimit = 5,
-            Window = TimeSpan.FromMinutes(1),
-            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-            QueueLimit = 2
-        }));
-
-    // Authentication endpoints: Prevent brute force
-    options.AddPolicy("authPolicy", context =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 5,
-                Window = TimeSpan.FromMinutes(1),
-                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = 0
-            }));
-
-    // Order endpoints: Prevent spam orders
-    options.AddPolicy("orderPolicy", context =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ??
-                          context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 10,
-                Window = TimeSpan.FromMinutes(1),
-                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = 2
-            }));
-});
-
-// Configure distributed cache for rate limiting (Redis preferred)
-var redisConn = builder.Configuration["Redis:ConnectionString"];
-if (!string.IsNullOrEmpty(redisConn))
-{
-    builder.Services.AddStackExchangeRedisCache(options =>
-    {
-        options.Configuration = redisConn;
-    });
-}
-else
-{
-    // Fallback for single-instance/dev
-    builder.Services.AddDistributedMemoryCache();
-}
-
-// Add services to the container
+// Add services to the container.
 builder.Services.AddControllers();
-builder.Services.AddResponseCaching(); // Add this for [ResponseCache]
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddResponseCaching();
+
+// Swagger Documentation
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Bookstore API", Version = "v1" });
+    c.SwaggerDoc("v1", new OpenApiInfo 
+    { 
+        Title = "Bookstore API", 
+        Version = "v1",
+        Description = "A clean architecture Bookstore API built with .NET 10" 
+    });
 
-    // Configure JWT authentication in Swagger
-    var securityScheme = new OpenApiSecurityScheme
+    // XML Documentation
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
     {
-        Name = "Authorization",
-        Description = "Enter JWT Bearer token **_only_**",
-        In = ParameterLocation.Header,
-        Type = SecuritySchemeType.Http,
-        Scheme = "bearer",
-        BearerFormat = "JWT",
-        Reference = new OpenApiReference
-        {
-            Id = JwtBearerDefaults.AuthenticationScheme,
-            Type = ReferenceType.SecurityScheme
-        }
-    };
+        c.IncludeXmlComments(xmlPath);
+    }
 
-    c.AddSecurityDefinition(securityScheme.Reference.Id, securityScheme);
+    // JWT Security Definition
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
 
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
-        { securityScheme, new string[] { } }
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
     });
 });
 
-// Add Infrastructure services
-builder.Services.AddInfrastructure(connectionString ?? throw new InvalidOperationException("Connection string is missing"), builder.Environment.IsEnvironment("Testing"));
+// Settings Configuration
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JWT"));
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
+builder.Services.Configure<PaystackSettings>(builder.Configuration.GetSection("Paystack"));
 
-// Configure JWT Authentication
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+// Register Infrastructure (this includes persistence, repos, and services)
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+builder.Services.AddInfrastructure(connectionString);
+
+// JWT Authentication
+var jwtSettings = builder.Configuration.GetSection("JWT").Get<JwtSettings>();
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
     {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtIssuer,
-            ValidAudience = jwtAudience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey ?? throw new InvalidOperationException("JWT Key is missing")))
-        };
-    });
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtSettings?.Issuer,
+        ValidAudience = jwtSettings?.Audience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings?.Key ?? ""))
+    };
+});
 
-// Add Authorization
-builder.Services.AddAuthorization();
-
-// Add CORS with environment-specific configuration (SECURITY FIX)
+// CORS Configuration
 builder.Services.AddCors(options =>
 {
-    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-        ?? Array.Empty<string>();
-
-    if (builder.Environment.IsDevelopment() && allowedOrigins.Length == 0)
+    options.AddPolicy("DefaultPolicy", policy =>
     {
-        // Development: Allow localhost
-        options.AddPolicy("AppCorsPolicy", policy =>
-        {
-            policy.WithOrigins("http://localhost:3000", "http://localhost:4200", "https://localhost:5001")
-                  .AllowAnyMethod()
-                  .AllowAnyHeader()
-                  .AllowCredentials();
-        });
-    }
-    else
-    {
-        // Production: Use configured allowed origins only
-        options.AddPolicy("AppCorsPolicy", policy =>
-        {
-            if (allowedOrigins.Length > 0)
-            {
-                policy.WithOrigins(allowedOrigins)
-                      .AllowAnyMethod()
-                      .AllowAnyHeader()
-                      .AllowCredentials();
-            }
-            else
-            {
-                // No CORS if not configured - safest default
-                policy.AllowAnyOrigin()
-                      .AllowAnyMethod()
-                      .AllowAnyHeader();
-            }
-        });
-    }
+        policy.WithOrigins("http://localhost:3000", "http://localhost:5173", "https://localhost:3000") // Common dev origins
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
 });
 
-// Add Logging
-builder.Services.AddLogging(config =>
+// Rate Limiting
+builder.Services.AddRateLimiter(options =>
 {
-    config.AddConsole();
-    config.AddDebug();
-});
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.User.Identity?.Name ?? httpContext.Request.Headers.Host.ToString(),
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 100,
+                QueueLimit = 20,
+                Window = TimeSpan.FromMinutes(1)
+            }));
 
-// Add Health Checks for monitoring (PRODUCTION REQUIREMENT)
-// Note: Install Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore for AddDbContextCheck
-builder.Services.AddHealthChecks();
+    options.AddPolicy("orderPolicy", partitioner =>
+    {
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: partitioner.User.Identity?.Name ?? partitioner.Request.Headers.Host.ToString(),
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            });
+    });
+
+    options.AddPolicy("authPolicy", partitioner =>
+    {
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: partitioner.Request.Headers.Host.ToString(),
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            });
+    });
+
+    options.AddPolicy("emailPolicy", partitioner =>
+    {
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: partitioner.Request.Headers.Host.ToString(),
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            });
+    });
+
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        await context.HttpContext.Response.WriteAsJsonAsync(ApiResponse.ErrorResponse("Too many requests. Please try again later.", null, 429), token);
+    };
+});
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
+app.UseCors("DefaultPolicy");
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Bookstore API V1");
+        c.RoutePrefix = "swagger";
+    });
 }
-
-// Add Global Exception Middleware
-app.UseMiddleware<GlobalExceptionMiddleware>();
-
-if (!app.Environment.IsEnvironment("Testing"))
-{
-    app.UseRateLimiter();
-}
-// Serve uploaded static files (cover images)
-app.UseStaticFiles();
-if (!app.Environment.IsDevelopment())
+else 
 {
     app.UseHttpsRedirection();
 }
-app.UseCors("AppCorsPolicy");
+
+// Standard middleware
+app.UseStaticFiles();
 app.UseResponseCaching();
 app.UseAuthentication();
 app.UseAuthorization();
-
-// Map health check endpoint for monitoring/ALB
-app.MapHealthChecks("/health");
+app.UseRateLimiter();
 
 app.MapControllers();
 
@@ -231,7 +198,7 @@ if (!app.Environment.IsEnvironment("Testing"))
 {
     using (var scope = app.Services.CreateScope())
     {
-        var dbContext = scope.ServiceProvider.GetRequiredService<Bookstore.Infrastructure.Persistence.BookStoreDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<BookStoreDbContext>();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
 
         try
@@ -239,56 +206,49 @@ if (!app.Environment.IsEnvironment("Testing"))
             if (app.Environment.IsDevelopment())
             {
                 // Development: Apply pending migrations (skip for InMemory)
-                if (dbContext.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory")
+                try
                 {
-                    try
+                    if (dbContext.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory")
                     {
-                        dbContext.Database.Migrate();
-                        logger.LogInformation("Database migrations applied successfully");
-                    }
-                    catch (InvalidOperationException iex) when (iex.Message != null && iex.Message.Contains("PendingModelChangesWarning"))
-                    {
-                        // EF Core reports that the model has pending changes that require a new migration.
-                        logger.LogError(iex, "EF model has pending changes which require creating a new migration before applying database updates.");
-                        logger.LogError("Action required: run the EF tools to add and apply a migration:\n  dotnet tool install --global dotnet-ef --version 10.0.3 (if not installed)\n  dotnet ef migrations add YourMigrationName --project \"Bookstore.Infrastructure\" --startup-project \"Bookstore.API\" --context BookStoreDbContext\n  dotnet ef database update --project \"Bookstore.Infrastructure\" --startup-project \"Bookstore.API\" --context BookStoreDbContext");
-                        // Do not rethrow to allow the dev server to run; developer must address migrations.
-                    }
-                    catch
-                    {
-                        // rethrow other migration exceptions
-                        throw;
+                        try
+                        {
+                            dbContext.Database.Migrate();
+                            logger.LogInformation("Database migrations applied successfully");
+                        }
+                        catch (InvalidOperationException iex) when (iex.Message != null && iex.Message.Contains("PendingModelChangesWarning"))
+                        {
+                            logger.LogError(iex, "EF model has pending changes which require creating a new migration before applying database updates.");
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogWarning(ex, "Could not apply migrations automatically. Ensure database is contactable.");
+                        }
                     }
                 }
-                else
+                catch (Exception ex)
                 {
-                    dbContext.Database.EnsureCreated();
-                    logger.LogInformation("InMemory database created");
+                    logger.LogWarning(ex, "Could not determine database provider. Proceeding with application startup.");
                 }
             }
             else
             {
-                // Production: Just check if database is accessible
-                // Migrations should be applied via CI/CD pipeline
-                if (dbContext.Database.CanConnect())
+                // Production: Apply migrations automatically (ensure database is ready)
+                try
                 {
-                    logger.LogInformation("Database connection verified");
+                    dbContext.Database.Migrate();
+                    logger.LogInformation("Production database migrations applied successfully");
                 }
-                else
+                catch (Exception ex)
                 {
-                    logger.LogError("Database connection failed");
-                    throw new InvalidOperationException("Cannot connect to database");
+                    logger.LogCritical(ex, "CRITICAL: Could not apply production migrations");
                 }
             }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "An error occurred while initializing the database");
-            throw;
+            logger.LogError(ex, "Error during database initialization scope");
         }
     }
 }
 
 app.Run();
-
-// Expose Program class for integration tests (WebApplicationFactory)
-public partial class Program { }

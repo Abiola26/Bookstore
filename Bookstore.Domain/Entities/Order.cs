@@ -5,17 +5,23 @@ namespace Bookstore.Domain.Entities;
 
 public class Order : BaseEntity
 {
-    private readonly List<OrderItem> _orderItems = new();
+    private readonly List<OrderItem> _items = new();
 
     public Guid UserId { get; set; }
     public User User { get; set; } = null!;
 
     public Money TotalAmount { get; set; } = Money.Zero();
+    public Money ShippingFee { get; set; } = Money.Zero();
+    public string ShippingAddress { get; set; } = string.Empty;
+    
+    public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.CashOnDelivery;
+    public string? PaymentReference { get; set; }
+    public bool IsPaid { get; set; } = false;
 
     public OrderStatus Status { get; set; } = OrderStatus.Pending;
     public string? IdempotencyKey { get; set; }
 
-    public IReadOnlyCollection<OrderItem> Items => _orderItems.AsReadOnly();
+    public IReadOnlyCollection<OrderItem> Items => _items;
 
     private Order() { }
 
@@ -28,7 +34,7 @@ public class Order : BaseEntity
     {
         if (item is null) throw new ArgumentNullException(nameof(item));
         
-        _orderItems.Add(item);
+        _items.Add(item);
         TotalAmount = TotalAmount + (item.UnitPrice * item.Quantity);
     }
 
@@ -38,7 +44,7 @@ public class Order : BaseEntity
             throw new InvalidOperationException("Cannot add items to a non-pending order");
 
         var item = new OrderItem(Id, bookId, quantity, price);
-        _orderItems.Add(item);
+        _items.Add(item);
         TotalAmount = TotalAmount + (price * quantity);
     }
 

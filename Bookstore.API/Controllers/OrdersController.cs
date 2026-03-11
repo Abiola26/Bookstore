@@ -61,11 +61,25 @@ public class OrdersController : ControllerBase
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(ApiResponse<OrderResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetOrderById(Guid id, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Get order {OrderId}", id);
         var response = await _orderService.GetOrderByIdAsync(id, cancellationToken);
+        
+        if (response.Success && response.Data != null)
+        {
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var isAdmin = User.IsInRole("Admin");
+            
+            if (!isAdmin && response.Data.UserId.ToString() != userIdClaim)
+            {
+                _logger.LogWarning("User {UserId} attempted unauthorized access to order {OrderId}", userIdClaim, id);
+                return StatusCode(StatusCodes.Status403Forbidden, ApiResponse.ErrorResponse("Unauthorized to view this order", null, 403));
+            }
+        }
+        
         return StatusCode(response.StatusCode ?? 400, response);
     }
 
@@ -172,6 +186,25 @@ public class OrdersController : ControllerBase
     {
         _logger.LogInformation("Cancel order {OrderId}", id);
         var response = await _orderService.CancelOrderAsync(id, cancellationToken);
+        return StatusCode(response.StatusCode ?? 400, response);
+    }
+
+    /// <summary>
+    /// Verify Paystack payment for an order
+    /// </summary>
+    /// <param name="id">Order ID</param>
+    /// <param name="reference">Paystack transaction reference</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Updated order details</returns>
+    [HttpPost("{id:guid}/verify-payment")]
+    [ProducesResponseType(typeof(ApiResponse<OrderResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> VerifyPayment(Guid id, [FromQuery] string reference, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Verify payment for order {OrderId} with reference {Reference}", id, reference);
+        var response = await _orderService.VerifyPaystackPaymentAsync(id, reference, cancellationToken);
         return StatusCode(response.StatusCode ?? 400, response);
     }
 }

@@ -1,5 +1,4 @@
 using Bookstore.Domain.Entities;
-using Bookstore.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -17,7 +16,7 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .IsRequired();
 
         // Owned Money mapping for TotalAmount
-        builder.OwnsOne<Money>(nameof(Order.TotalAmount), m =>
+        builder.OwnsOne(o => o.TotalAmount, m =>
         {
             m.Property(p => p.Amount)
                 .HasColumnName("TotalAmount")
@@ -27,8 +26,38 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             m.Property(p => p.Currency)
                 .HasColumnName("TotalAmountCurrency")
                 .HasMaxLength(10)
+                .HasDefaultValue("USD")
                 .IsRequired();
         });
+
+        // Owned Money mapping for ShippingFee
+        builder.OwnsOne(o => o.ShippingFee, m =>
+        {
+            m.Property(p => p.Amount)
+                .HasColumnName("ShippingFee")
+                .HasPrecision(18, 2)
+                .IsRequired();
+
+            m.Property(p => p.Currency)
+                .HasColumnName("ShippingFeeCurrency")
+                .HasMaxLength(10)
+                .HasDefaultValue("USD")
+                .IsRequired();
+        });
+
+        builder.Property(o => o.ShippingAddress)
+            .IsRequired()
+            .HasMaxLength(500);
+
+        builder.Property(o => o.PaymentMethod)
+            .IsRequired();
+
+        builder.Property(o => o.PaymentReference)
+            .HasMaxLength(100);
+
+        builder.Property(o => o.IsPaid)
+            .IsRequired()
+            .HasDefaultValue(false);
 
         builder.Property(o => o.Status)
             .IsRequired();
@@ -36,7 +65,8 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasMany(o => o.Items)
             .WithOne(oi => oi.Order)
             .HasForeignKey(oi => oi.OrderId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Cascade)
+            .Metadata.PrincipalToDependent!.SetPropertyAccessMode(PropertyAccessMode.Field);
 
         builder.Property(o => o.CreatedAt).IsRequired();
         builder.Property(o => o.UpdatedAt).IsRequired();
