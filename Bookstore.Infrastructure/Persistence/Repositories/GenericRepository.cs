@@ -37,7 +37,8 @@ public class GenericRepository<TEntity> : IGenericRepository<TEntity> where TEnt
 
     public virtual void Delete(TEntity entity)
     {
-        _dbSet.Remove(entity);
+        entity.IsDeleted = true;
+        _dbSet.Update(entity);
     }
 
     public virtual async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

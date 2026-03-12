@@ -16,6 +16,7 @@ public class UnitOfWork : IUnitOfWork
     private IReviewRepository? _reviewRepository;
     private IWishlistRepository? _wishlistRepository;
     private IShoppingCartRepository? _shoppingCartRepository;
+    private IReportRepository? _reportRepository;
 
     public UnitOfWork(BookStoreDbContext context)
     {
@@ -30,6 +31,7 @@ public class UnitOfWork : IUnitOfWork
     public IReviewRepository Reviews => _reviewRepository ??= new ReviewRepository(_context);
     public IWishlistRepository Wishlist => _wishlistRepository ??= new WishlistRepository(_context);
     public IShoppingCartRepository ShoppingCarts => _shoppingCartRepository ??= new ShoppingCartRepository(_context);
+    public IReportRepository Reports => _reportRepository ??= new ReportRepository(_context);
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

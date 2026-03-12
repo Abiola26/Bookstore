@@ -303,6 +303,27 @@ public class OrderService : IOrderService
         }
     }
 
+    public async Task<ApiResponse> DeleteOrderAsync(Guid orderId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var order = await _unitOfWork.Orders.GetByIdAsync(orderId, cancellationToken);
+            if (order == null)
+                return ApiResponse.ErrorResponse("Order not found", null, 404);
+
+            _unitOfWork.Orders.Delete(order);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("Order {OrderId} deleted successfully", orderId);
+            return ApiResponse.SuccessResponse("Order deleted successfully");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting order {OrderId}", orderId);
+            return ApiResponse.ErrorResponse("An error occurred while deleting the order", null, 500);
+        }
+    }
+
     public async Task<ApiResponse<OrderResponseDto>> VerifyPaystackPaymentAsync(Guid orderId, string reference, CancellationToken cancellationToken = default)
     {
         try

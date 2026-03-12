@@ -30,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IOrderItemRepository, OrderItemRepository>();
+        services.AddScoped<IReportRepository, ReportRepository>();
 
         // Services
         // Password hasher
@@ -48,6 +49,7 @@ public static class DependencyInjection
         services.AddScoped<IWishlistService, WishlistService>();
         services.AddScoped<IShoppingCartService, ShoppingCartService>();
         services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IReportService, ReportService>();
         services.AddHttpClient<IPaystackService, PaystackService>();
 
         return services;

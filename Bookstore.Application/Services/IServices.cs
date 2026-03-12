@@ -49,6 +49,7 @@ public interface IOrderService
     Task<ApiResponse<OrderResponseDto>> CreateOrderAsync(Guid userId, OrderCreateDto dto, string? idempotencyKey = null, CancellationToken cancellationToken = default);
     Task<ApiResponse<OrderResponseDto>> UpdateOrderStatusAsync(Guid orderId, OrderUpdateStatusDto dto, CancellationToken cancellationToken = default);
     Task<ApiResponse> CancelOrderAsync(Guid orderId, CancellationToken cancellationToken = default);
+    Task<ApiResponse> DeleteOrderAsync(Guid orderId, CancellationToken cancellationToken = default);
     Task<ApiResponse<OrderResponseDto>> VerifyPaystackPaymentAsync(Guid orderId, string reference, CancellationToken cancellationToken = default);
 }
 
@@ -84,4 +85,13 @@ public interface IUserService
     Task<ApiResponse<UserResponseDto>> GetUserByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<ApiResponse<UserResponseDto>> UpdateUserRoleAsync(Guid id, UserRole role, CancellationToken cancellationToken = default);
     Task<ApiResponse> DeleteUserAsync(Guid id, CancellationToken cancellationToken = default);
+}
+
+public interface IReportService
+{
+    Task<ApiResponse<DashboardReportDto>> GetDashboardReportAsync(CancellationToken cancellationToken = default);
+    Task<ApiResponse<InventoryReportDto>> GetInventoryReportAsync(CancellationToken cancellationToken = default);
+    Task<ApiResponse<UserEngagementReportDto>> GetUserEngagementReportAsync(CancellationToken cancellationToken = default);
+    Task<ApiResponse<ReviewAnalyticsReportDto>> GetReviewAnalyticsReportAsync(CancellationToken cancellationToken = default);
+    Task<ApiResponse<byte[]>> ExportSalesReportAsync(DateTimeOffset startDate, DateTimeOffset endDate, CancellationToken cancellationToken = default);
 }

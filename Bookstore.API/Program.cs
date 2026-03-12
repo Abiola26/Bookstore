@@ -71,7 +71,8 @@ builder.Services.Configure<PaystackSettings>(builder.Configuration.GetSection("P
 // Register Infrastructure (this includes persistence, repos, and services)
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-builder.Services.AddInfrastructure(connectionString);
+var isTesting = builder.Environment.IsEnvironment("Testing");
+builder.Services.AddInfrastructure(connectionString, isTesting);
 
 // JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JWT").Get<JwtSettings>();

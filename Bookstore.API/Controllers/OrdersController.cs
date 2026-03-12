@@ -190,6 +190,29 @@ public class OrdersController : ControllerBase
     }
 
     /// <summary>
+    /// Delete an order (Admin only)
+    /// </summary>
+    /// <param name="id">Order ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Success message</returns>
+    /// <response code="200">Order deleted successfully</response>
+    /// <response code="401">Unauthorized</response>
+    /// <response code="403">Forbidden - Admin only</response>
+    /// <response code="404">Order not found</response>
+    [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteOrder(Guid id, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Delete order {OrderId}", id);
+        var response = await _orderService.DeleteOrderAsync(id, cancellationToken);
+        return StatusCode(response.StatusCode ?? 400, response);
+    }
+
+    /// <summary>
     /// Verify Paystack payment for an order
     /// </summary>
     /// <param name="id">Order ID</param>

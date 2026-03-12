@@ -84,13 +84,9 @@ public class CategoryRepositoryTests : IClassFixture<TestDatabaseFixture>
 
         // Act
         repo.Delete(category);
-        var stateBefore = context.Entry(category).State;
         await context.SaveChangesAsync();
-        var stateAfter = context.Entry(category).State;
 
         // Assert
-        stateBefore.Should().Be(EntityState.Deleted);
-        stateAfter.Should().Be(EntityState.Unchanged);
         category.IsDeleted.Should().BeTrue();
 
         var deleted = await context.Categories.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.Id == category.Id);

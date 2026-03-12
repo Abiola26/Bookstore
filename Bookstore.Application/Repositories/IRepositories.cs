@@ -1,4 +1,5 @@
 using Bookstore.Domain.Entities;
+using Bookstore.Application.DTOs;
 
 namespace Bookstore.Application.Repositories;
 
@@ -75,6 +76,19 @@ public interface IShoppingCartRepository : IGenericRepository<ShoppingCart>
     Task<ShoppingCart?> GetUserCartWithItemsAsync(Guid userId, CancellationToken cancellationToken = default);
 }
 
+public interface IReportRepository
+{
+    Task<decimal> GetTotalRevenueAsync(CancellationToken cancellationToken = default);
+    Task<ICollection<TopBookDto>> GetTopSellingBooksAsync(int count, CancellationToken cancellationToken = default);
+    Task<ICollection<MonthlySalesDto>> GetMonthlySalesAsync(int months, CancellationToken cancellationToken = default);
+    Task<ICollection<CategoryStockDto>> GetStockByCategoryAsync(CancellationToken cancellationToken = default);
+    Task<ICollection<CategorySalesDto>> GetSalesByCategoryAsync(CancellationToken cancellationToken = default);
+    Task<ICollection<TopCustomerDto>> GetTopCustomersAsync(int count, CancellationToken cancellationToken = default);
+    Task<ICollection<UserGrowthDto>> GetUserGrowthAsync(int months, CancellationToken cancellationToken = default);
+    Task<ICollection<RatingCountDto>> GetRatingDistributionAsync(CancellationToken cancellationToken = default);
+    Task<ICollection<TopRatedBookDto>> GetTopRatedBooksAsync(int count, CancellationToken cancellationToken = default);
+}
+
 public interface IUnitOfWork : IDisposable
 {
     IBookRepository Books { get; }
@@ -85,6 +99,7 @@ public interface IUnitOfWork : IDisposable
     IReviewRepository Reviews { get; }
     IWishlistRepository Wishlist { get; }
     IShoppingCartRepository ShoppingCarts { get; }
+    IReportRepository Reports { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task BeginTransactionAsync(CancellationToken cancellationToken = default);
