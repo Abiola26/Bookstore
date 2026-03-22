@@ -1,0 +1,13 @@
+**/.vs/
+**/bin/
+**/obj/
+**/*.user
+**/*.lock.json
+**/appsettings.Development.json
+.git/
+.github/
+.vscode/
+data/
+Dockerfile
+.dockerignore
+docker-compose*
