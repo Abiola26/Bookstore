@@ -3,7 +3,6 @@ using Bookstore.Domain.ValueObjects;
 using Bookstore.Infrastructure.Persistence.Repositories;
 using Bookstore.Tests.Fixtures;
 using FluentAssertions;
-using Xunit;
 
 namespace Bookstore.Tests.Unit.Infrastructure.Repositories;
 

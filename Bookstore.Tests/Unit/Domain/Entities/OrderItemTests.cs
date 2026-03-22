@@ -1,15 +1,14 @@
 using Bookstore.Domain.Entities;
 using Bookstore.Domain.ValueObjects;
 using FluentAssertions;
-using Xunit;
 
 namespace Bookstore.Tests.Unit.Domain.Entities;
 
 public class OrderItemTests
 {
     private readonly Guid _orderId = Guid.NewGuid();
-    private readonly Guid _bookId  = Guid.NewGuid();
-    private readonly Money _price  = new Money(25m, "USD");
+    private readonly Guid _bookId = Guid.NewGuid();
+    private readonly Money _price = new Money(25m, "USD");
 
     [Fact]
     public void Constructor_ShouldInitializeProperties()

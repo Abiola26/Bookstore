@@ -1,5 +1,8 @@
 using Bookstore.Application.DTOs;
-using Bookstore.Application.Services;
+using Bookstore.Application.Features.ShoppingCart.Queries;
+using Bookstore.Application.Features.ShoppingCart.Commands;
+using Bookstore.Application.Common;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -11,12 +14,12 @@ namespace Bookstore.API.Controllers;
 [Authorize]
 public class ShoppingCartController : ControllerBase
 {
-    private readonly IShoppingCartService _shoppingCartService;
+    private readonly IMediator _mediator;
     private readonly ILogger<ShoppingCartController> _logger;
 
-    public ShoppingCartController(IShoppingCartService shoppingCartService, ILogger<ShoppingCartController> logger)
+    public ShoppingCartController(IMediator mediator, ILogger<ShoppingCartController> logger)
     {
-        _shoppingCartService = shoppingCartService;
+        _mediator = mediator;
         _logger = logger;
     }
 
@@ -25,23 +28,12 @@ public class ShoppingCartController : ControllerBase
     /// </summary>
     /// <returns>Shopping cart with all items</returns>
     [HttpGet]
-    public async Task<ActionResult<ShoppingCartResponseDto>> GetCart(CancellationToken cancellationToken = default)
+    public async Task<IActionResult> GetCart(CancellationToken cancellationToken = default)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var response = await _shoppingCartService.GetUserCartAsync(userId, cancellationToken);
-
-            if (!response.Success)
-                return StatusCode(response.StatusCode ?? 500, response);
-
-            return Ok(response);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving shopping cart");
-            return StatusCode(500, new { message = "An error occurred while retrieving the shopping cart" });
-        }
+        var userId = GetCurrentUserId();
+        _logger.LogInformation("Retrieving shopping cart for user {UserId}", userId);
+        var response = await _mediator.Send(new GetUserCartQuery(userId), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 
     /// <summary>
@@ -50,26 +42,19 @@ public class ShoppingCartController : ControllerBase
     /// <param name="dto">Item details to add</param>
     /// <returns>Updated shopping cart</returns>
     [HttpPost("items")]
-    public async Task<ActionResult<ShoppingCartResponseDto>> AddToCart([FromBody] AddToCartDto dto, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> AddToCart([FromBody] AddToCartDto dto, CancellationToken cancellationToken = default)
     {
-        try
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
-            var userId = GetCurrentUserId();
-            var response = await _shoppingCartService.AddToCartAsync(userId, dto, cancellationToken);
+        var userId = GetCurrentUserId();
+        _logger.LogInformation("User {UserId} adding book {BookId} to cart", userId, dto.BookId);
+        var response = await _mediator.Send(new AddToCartCommand(userId, dto), cancellationToken);
+        
+        if (response.Success)
+            return CreatedAtAction(nameof(GetCart), response);
 
-            if (!response.Success)
-                return StatusCode(response.StatusCode ?? 500, response);
-
-            return CreatedAtAction(nameof(GetCart), response.Data);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error adding item to cart");
-            return StatusCode(500, new { message = "An error occurred while adding item to cart" });
-        }
+        return StatusCode(response.StatusCode ?? 400, response);
     }
 
     /// <summary>
@@ -79,26 +64,15 @@ public class ShoppingCartController : ControllerBase
     /// <param name="dto">New quantity</param>
     /// <returns>Updated shopping cart</returns>
     [HttpPut("items/{cartItemId}")]
-    public async Task<ActionResult<ShoppingCartResponseDto>> UpdateCartItem(Guid cartItemId, [FromBody] UpdateCartItemDto dto, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> UpdateCartItem(Guid cartItemId, [FromBody] UpdateCartItemDto dto, CancellationToken cancellationToken = default)
     {
-        try
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
-            var userId = GetCurrentUserId();
-            var response = await _shoppingCartService.UpdateCartItemAsync(userId, cartItemId, dto, cancellationToken);
-
-            if (!response.Success)
-                return StatusCode(response.StatusCode ?? 500, response);
-
-            return Ok(response);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error updating cart item {CartItemId}", cartItemId);
-            return StatusCode(500, new { message = "An error occurred while updating cart item" });
-        }
+        var userId = GetCurrentUserId();
+        _logger.LogInformation("User {UserId} updating cart item {CartItemId} quantity to {Quantity}", userId, cartItemId, dto.Quantity);
+        var response = await _mediator.Send(new UpdateCartItemCommand(userId, cartItemId, dto), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 
     /// <summary>
@@ -107,23 +81,12 @@ public class ShoppingCartController : ControllerBase
     /// <param name="cartItemId">ID of the cart item to remove</param>
     /// <returns>Updated shopping cart</returns>
     [HttpDelete("items/{cartItemId}")]
-    public async Task<ActionResult<ShoppingCartResponseDto>> RemoveFromCart(Guid cartItemId, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> RemoveFromCart(Guid cartItemId, CancellationToken cancellationToken = default)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var response = await _shoppingCartService.RemoveFromCartAsync(userId, cartItemId, cancellationToken);
-
-            if (!response.Success)
-                return StatusCode(response.StatusCode ?? 500, response);
-
-            return Ok(response);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error removing item from cart {CartItemId}", cartItemId);
-            return StatusCode(500, new { message = "An error occurred while removing item from cart" });
-        }
+        var userId = GetCurrentUserId();
+        _logger.LogInformation("User {UserId} removing cart item {CartItemId}", userId, cartItemId);
+        var response = await _mediator.Send(new RemoveFromCartCommand(userId, cartItemId), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 
     /// <summary>
@@ -131,23 +94,12 @@ public class ShoppingCartController : ControllerBase
     /// </summary>
     /// <returns>Empty shopping cart</returns>
     [HttpDelete]
-    public async Task<ActionResult<ShoppingCartResponseDto>> ClearCart(CancellationToken cancellationToken = default)
+    public async Task<IActionResult> ClearCart(CancellationToken cancellationToken = default)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var response = await _shoppingCartService.ClearCartAsync(userId, cancellationToken);
-
-            if (!response.Success)
-                return StatusCode(response.StatusCode ?? 500, response);
-
-            return Ok(response);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error clearing cart");
-            return StatusCode(500, new { message = "An error occurred while clearing cart" });
-        }
+        var userId = GetCurrentUserId();
+        _logger.LogInformation("User {UserId} clearing shopping cart", userId);
+        var response = await _mediator.Send(new ClearCartCommand(userId), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 
     /// <summary>

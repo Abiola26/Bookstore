@@ -1,6 +1,8 @@
 using Bookstore.Application.DTOs;
-using Bookstore.Application.Services;
+using Bookstore.Application.Features.Orders.Queries;
+using Bookstore.Application.Features.Orders.Commands;
 using Bookstore.Application.Common;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -16,12 +18,12 @@ namespace Bookstore.API.Controllers;
 [Authorize]
 public class OrdersController : ControllerBase
 {
-    private readonly IOrderService _orderService;
+    private readonly IMediator _mediator;
     private readonly ILogger<OrdersController> _logger;
 
-    public OrdersController(IOrderService orderService, ILogger<OrdersController> logger)
+    public OrdersController(IMediator mediator, ILogger<OrdersController> logger)
     {
-        _orderService = orderService;
+        _mediator = mediator;
         _logger = logger;
     }
 
@@ -45,8 +47,8 @@ public class OrdersController : ControllerBase
     public async Task<IActionResult> GetAllOrders([FromQuery] int pageNumber = ApplicationConstants.Pagination.DefaultPageNumber, [FromQuery] int pageSize = ApplicationConstants.Pagination.DefaultPageSize, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Get all orders - page {PageNumber}, size {PageSize}", pageNumber, pageSize);
-        var response = await _orderService.GetAllOrdersPaginatedAsync(pageNumber, pageSize, cancellationToken);
-        return StatusCode(response.StatusCode ?? 400, response);
+        var response = await _mediator.Send(new GetAllOrdersQuery(pageNumber, pageSize), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 
     /// <summary>
@@ -66,20 +68,20 @@ public class OrdersController : ControllerBase
     public async Task<IActionResult> GetOrderById(Guid id, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Get order {OrderId}", id);
-        var response = await _orderService.GetOrderByIdAsync(id, cancellationToken);
-        
+        var response = await _mediator.Send(new GetOrderByIdQuery(id), cancellationToken);
+
         if (response.Success && response.Data != null)
         {
             var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             var isAdmin = User.IsInRole("Admin");
-            
+
             if (!isAdmin && response.Data.UserId.ToString() != userIdClaim)
             {
                 _logger.LogWarning("User {UserId} attempted unauthorized access to order {OrderId}", userIdClaim, id);
                 return StatusCode(StatusCodes.Status403Forbidden, ApiResponse.ErrorResponse("Unauthorized to view this order", null, 403));
             }
         }
-        
+
         return StatusCode(response.StatusCode ?? 400, response);
     }
 
@@ -104,8 +106,8 @@ public class OrdersController : ControllerBase
             return Unauthorized();
 
         _logger.LogInformation("Get orders for user {UserId} page {PageNumber}", userId, pageNumber);
-        var response = await _orderService.GetUserOrdersPaginatedAsync(userId, pageNumber, pageSize, cancellationToken);
-        return StatusCode(response.StatusCode ?? 400, response);
+        var response = await _mediator.Send(new GetUserOrdersQuery(userId, pageNumber, pageSize), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 
     /// <summary>
@@ -137,8 +139,8 @@ public class OrdersController : ControllerBase
         _logger.LogInformation("Create order for user {UserId} with {ItemCount} items. IdempotencyKey: {Key}",
             userId, dto.Items.Count, string.IsNullOrEmpty(idempotencyKey) ? "None" : "Provided");
 
-        var response = await _orderService.CreateOrderAsync(userId, dto, idempotencyKey, cancellationToken);
-        return StatusCode(response.StatusCode ?? 400, response);
+        var response = await _mediator.Send(new CreateOrderCommand(userId, dto, idempotencyKey), cancellationToken);
+        return StatusCode(response.StatusCode ?? 201, response);
     }
 
     /// <summary>
@@ -163,8 +165,8 @@ public class OrdersController : ControllerBase
     public async Task<IActionResult> UpdateOrderStatus(Guid id, [FromBody] OrderUpdateStatusDto dto, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Update order {OrderId} status to {Status}", id, dto.Status);
-        var response = await _orderService.UpdateOrderStatusAsync(id, dto, cancellationToken);
-        return StatusCode(response.StatusCode ?? 400, response);
+        var response = await _mediator.Send(new UpdateOrderStatusCommand(id, dto), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 
     /// <summary>
@@ -185,8 +187,8 @@ public class OrdersController : ControllerBase
     public async Task<IActionResult> CancelOrder(Guid id, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Cancel order {OrderId}", id);
-        var response = await _orderService.CancelOrderAsync(id, cancellationToken);
-        return StatusCode(response.StatusCode ?? 400, response);
+        var response = await _mediator.Send(new CancelOrderCommand(id), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 
     /// <summary>
@@ -208,8 +210,8 @@ public class OrdersController : ControllerBase
     public async Task<IActionResult> DeleteOrder(Guid id, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Delete order {OrderId}", id);
-        var response = await _orderService.DeleteOrderAsync(id, cancellationToken);
-        return StatusCode(response.StatusCode ?? 400, response);
+        var response = await _mediator.Send(new DeleteOrderCommand(id), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 
     /// <summary>
@@ -227,7 +229,21 @@ public class OrdersController : ControllerBase
     public async Task<IActionResult> VerifyPayment(Guid id, [FromQuery] string reference, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Verify payment for order {OrderId} with reference {Reference}", id, reference);
-        var response = await _orderService.VerifyPaystackPaymentAsync(id, reference, cancellationToken);
-        return StatusCode(response.StatusCode ?? 400, response);
+        var response = await _mediator.Send(new VerifyPaystackPaymentCommand(id, reference), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
+    }
+
+    /// <summary>
+    /// Get order configuration (shipping fee, etc.)
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Order configuration</returns>
+    [HttpGet("configuration")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(ApiResponse<OrderConfigurationResponseDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetOrderConfiguration(CancellationToken cancellationToken)
+    {
+        var response = await _mediator.Send(new GetOrderConfigurationQuery(), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 }

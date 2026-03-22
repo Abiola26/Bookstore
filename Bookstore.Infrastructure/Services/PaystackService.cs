@@ -18,7 +18,7 @@ public class PaystackService : IPaystackService
     {
         _httpClient = httpClient;
         _settings = settings.Value;
-        
+
         _httpClient.BaseAddress = new Uri(_settings.BaseUrl);
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _settings.SecretKey);
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));

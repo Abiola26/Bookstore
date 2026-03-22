@@ -1,5 +1,3 @@
-using Bookstore.Application.Common;
-
 namespace Bookstore.Application.DTOs;
 
 public class DashboardReportDto

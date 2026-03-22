@@ -71,13 +71,13 @@ public class LocalFileStorageService : IFileStorageService
         }
 
         var normalizedFolder = folderName.Replace(Path.DirectorySeparatorChar, '/');
-        
+
         return new FileUploadResult
         {
             FileUrl = $"/{normalizedFolder}/{uniqueName}",
             ThumbnailUrl = thumbUrl?.Replace(Path.DirectorySeparatorChar, '/')
         };
-}
+    }
 
     public Task DeleteFileAsync(string fileUrl, string folderName)
     {

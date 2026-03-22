@@ -3,7 +3,6 @@ using Bookstore.Infrastructure.Persistence.Repositories;
 using Bookstore.Tests.Fixtures;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Xunit;
 
 namespace Bookstore.Tests.Unit.Infrastructure.Repositories;
 
@@ -22,7 +21,7 @@ public class CategoryRepositoryTests : IClassFixture<TestDatabaseFixture>
         // Arrange
         using var context = _fixture.CreateContext();
         var repo = new CategoryRepository(context);
-        
+
         var category1 = new Category("Sci-Fi");
         var category2 = new Category("History");
         context.Categories.AddRange(category1, category2);
@@ -43,7 +42,7 @@ public class CategoryRepositoryTests : IClassFixture<TestDatabaseFixture>
         // Arrange
         using var context = _fixture.CreateContext();
         var repo = new CategoryRepository(context);
-        
+
         var category = new Category("Fantasy");
         context.Categories.Add(category);
         await context.SaveChangesAsync();

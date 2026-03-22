@@ -60,3 +60,9 @@ public class OrderUpdateStatusDto
 {
     public string Status { get; set; } = string.Empty;
 }
+
+public class OrderConfigurationResponseDto
+{
+    public decimal ShippingFee { get; set; }
+    public string Currency { get; set; } = "USD";
+}

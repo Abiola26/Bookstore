@@ -1,5 +1,8 @@
 using Bookstore.Application.DTOs;
-using Bookstore.Application.Services;
+using Bookstore.Application.Features.Reviews.Queries;
+using Bookstore.Application.Features.Reviews.Commands;
+using Bookstore.Application.Common;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -10,12 +13,12 @@ namespace Bookstore.API.Controllers;
 [Route("api")]
 public class ReviewsController : ControllerBase
 {
-    private readonly IReviewService _reviewService;
+    private readonly IMediator _mediator;
     private readonly ILogger<ReviewsController> _logger;
 
-    public ReviewsController(IReviewService reviewService, ILogger<ReviewsController> logger)
+    public ReviewsController(IMediator mediator, ILogger<ReviewsController> logger)
     {
-        _reviewService = reviewService;
+        _mediator = mediator;
         _logger = logger;
     }
 
@@ -29,11 +32,13 @@ public class ReviewsController : ControllerBase
         var userId = GetUserId();
         if (userId == Guid.Empty) return Unauthorized();
 
-        var result = await _reviewService.AddReviewAsync(bookId, userId, dto, cancellationToken);
-        if (!result.Success)
-            return StatusCode(result.StatusCode ?? 400, result);
+        _logger.LogInformation("User {UserId} adding review for book {BookId}", userId, bookId);
+        var response = await _mediator.Send(new AddReviewCommand(bookId, userId, dto), cancellationToken);
+        
+        if (response.Success)
+            return CreatedAtAction(nameof(GetBookReviews), new { bookId }, response);
 
-        return CreatedAtAction(nameof(GetBookReviews), new { bookId }, result);
+        return StatusCode(response.StatusCode ?? 400, response);
     }
 
     /// <summary>
@@ -43,11 +48,9 @@ public class ReviewsController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> GetBookReviews(Guid bookId, CancellationToken cancellationToken)
     {
-        var result = await _reviewService.GetBookReviewsAsync(bookId, cancellationToken);
-        if (!result.Success)
-            return StatusCode(result.StatusCode ?? 500, result);
-
-        return Ok(result);
+        _logger.LogInformation("Retrieving reviews for book {BookId}", bookId);
+        var response = await _mediator.Send(new GetBookReviewsQuery(bookId), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 
     /// <summary>
@@ -57,11 +60,9 @@ public class ReviewsController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> GetBookReviewSummary(Guid bookId, CancellationToken cancellationToken)
     {
-        var result = await _reviewService.GetBookReviewSummaryAsync(bookId, cancellationToken);
-        if (!result.Success)
-            return StatusCode(result.StatusCode ?? 500, result);
-
-        return Ok(result);
+        _logger.LogInformation("Retrieving review summary for book {BookId}", bookId);
+        var response = await _mediator.Send(new GetBookReviewSummaryQuery(bookId), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 
     /// <summary>
@@ -74,11 +75,9 @@ public class ReviewsController : ControllerBase
         var userId = GetUserId();
         if (userId == Guid.Empty) return Unauthorized();
 
-        var result = await _reviewService.UpdateReviewAsync(id, userId, dto, cancellationToken);
-        if (!result.Success)
-            return StatusCode(result.StatusCode ?? 400, result);
-
-        return Ok(result);
+        _logger.LogInformation("User {UserId} updating review {ReviewId}", userId, id);
+        var response = await _mediator.Send(new UpdateReviewCommand(id, userId, dto), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 
     /// <summary>
@@ -92,12 +91,10 @@ public class ReviewsController : ControllerBase
         if (userId == Guid.Empty) return Unauthorized();
 
         var isAdmin = User.IsInRole("Admin");
-        var result = await _reviewService.DeleteReviewAsync(id, userId, isAdmin, cancellationToken);
-
-        if (!result.Success)
-            return StatusCode(result.StatusCode ?? 400, result);
-
-        return Ok(result);
+        _logger.LogInformation("User {UserId} deleting review {ReviewId} (IsAdmin: {IsAdmin})", userId, id, isAdmin);
+        
+        var response = await _mediator.Send(new DeleteReviewCommand(id, userId, isAdmin), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 
     private Guid GetUserId()

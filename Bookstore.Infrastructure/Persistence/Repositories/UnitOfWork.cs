@@ -6,6 +6,7 @@ namespace Bookstore.Infrastructure.Persistence.Repositories;
 public class UnitOfWork : IUnitOfWork
 {
     private readonly BookStoreDbContext _context;
+    private readonly MediatR.IMediator _mediator;
     private Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? _transaction;
 
     private IBookRepository? _bookRepository;
@@ -18,9 +19,10 @@ public class UnitOfWork : IUnitOfWork
     private IShoppingCartRepository? _shoppingCartRepository;
     private IReportRepository? _reportRepository;
 
-    public UnitOfWork(BookStoreDbContext context)
+    public UnitOfWork(BookStoreDbContext context, MediatR.IMediator mediator)
     {
         _context = context;
+        _mediator = mediator;
     }
 
     public IBookRepository Books => _bookRepository ??= new BookRepository(_context);
@@ -35,6 +37,7 @@ public class UnitOfWork : IUnitOfWork
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
+        await DispatchDomainEventsAsync(cancellationToken);
         return await _context.SaveChangesAsync(cancellationToken);
     }
 
@@ -96,6 +99,7 @@ public class UnitOfWork : IUnitOfWork
             try
             {
                 var result = await action(cancellationToken);
+                await DispatchDomainEventsAsync(cancellationToken);
                 await _context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
                 return result;
@@ -106,6 +110,25 @@ public class UnitOfWork : IUnitOfWork
                 throw;
             }
         });
+    }
+
+    private async Task DispatchDomainEventsAsync(CancellationToken cancellationToken)
+    {
+        var domainEntities = _context.ChangeTracker
+            .Entries<Bookstore.Domain.Entities.BaseEntity>()
+            .Where(x => x.Entity.DomainEvents != null && x.Entity.DomainEvents.Any());
+
+        var domainEvents = domainEntities
+            .SelectMany(x => x.Entity.DomainEvents)
+            .ToList();
+
+        domainEntities.ToList()
+            .ForEach(entity => entity.Entity.ClearDomainEvents());
+
+        foreach (var domainEvent in domainEvents)
+        {
+            await _mediator.Publish(domainEvent, cancellationToken);
+        }
     }
 
     public void Dispose()

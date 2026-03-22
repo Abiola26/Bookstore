@@ -23,6 +23,7 @@ public interface IBookRepository : IGenericRepository<Book>
     Task<bool> ISBNExistsAsync(string isbn, Guid? excludeBookId = null, CancellationToken cancellationToken = default);
     Task<ICollection<Book>> GetPaginatedByCategoryAsync(Guid categoryId, int pageNumber, int pageSize, CancellationToken cancellationToken = default);
     Task<int> GetCategoryBookCountAsync(Guid categoryId, CancellationToken cancellationToken = default);
+    Task DeleteWithRelatedAsync(Book book, CancellationToken cancellationToken = default);
 }
 
 public interface ICategoryRepository : IGenericRepository<Category>

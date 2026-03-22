@@ -3,6 +3,7 @@ using Bookstore.Application.Services;
 using Bookstore.Infrastructure.Services;
 using Bookstore.Infrastructure.Persistence.Repositories;
 using Bookstore.Infrastructure.Persistence;
+using Bookstore.Infrastructure.Persistence.Interceptors;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,12 +16,17 @@ public static class DependencyInjection
         // Database Configuration
         if (!isTesting)
         {
-            services.AddDbContext<BookStoreDbContext>(options =>
+            services.AddSingleton<UpdateTimestampInterceptor>();
+
+            services.AddDbContext<BookStoreDbContext>((sp, options) =>
+            {
+                var interceptor = sp.GetRequiredService<UpdateTimestampInterceptor>();
                 options.UseNpgsql(connectionString, sqlOptions =>
                 {
                     sqlOptions.CommandTimeout(30);
                     sqlOptions.EnableRetryOnFailure(3, TimeSpan.FromSeconds(10), null);
-                }));
+                }).AddInterceptors(interceptor);
+            });
         }
 
         // Repositories
@@ -35,21 +41,14 @@ public static class DependencyInjection
         // Services
         // Password hasher
         services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
+        // JWT Provider
+        services.AddSingleton<IJwtProvider, JwtProvider>();
         // Email sender (SMTP with fallback to logging)
         services.AddSingleton<IEmailSender, SmtpEmailSender>();
         // File storage
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
         // Rate limit service (uses IDistributedCache)
         services.AddScoped<IRateLimitService, DistributedRateLimitService>();
-        services.AddScoped<IBookService, BookService>();
-        services.AddScoped<ICategoryService, CategoryService>();
-        services.AddScoped<IAuthenticationService, AuthenticationService>();
-        services.AddScoped<IOrderService, OrderService>();
-        services.AddScoped<IReviewService, ReviewService>();
-        services.AddScoped<IWishlistService, WishlistService>();
-        services.AddScoped<IShoppingCartService, ShoppingCartService>();
-        services.AddScoped<IUserService, UserService>();
-        services.AddScoped<IReportService, ReportService>();
         services.AddHttpClient<IPaystackService, PaystackService>();
 
         return services;

@@ -27,7 +27,7 @@ public class BooksApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
         using (var scope = _factory.Services.CreateScope())
         {
             var context = scope.ServiceProvider.GetRequiredService<BookStoreDbContext>();
-            
+
             var category = new Category("Integration Test Cat");
             context.Categories.Add(category);
             var book = new Book("Integration Test Title", "D", new ISBN("978-0-123-456"), new Money(10, "USD"), "A", 10, category.Id);
@@ -41,7 +41,7 @@ public class BooksApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
         // Assert
         response.EnsureSuccessStatusCode();
         var result = await response.Content.ReadFromJsonAsync<Application.Common.ApiResponse<Application.Common.PagedResult<BookResponseDto>>>();
-        
+
         result.Should().NotBeNull();
         result!.Success.Should().BeTrue();
         result.Data!.Items.Should().NotBeEmpty();

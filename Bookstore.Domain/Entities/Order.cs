@@ -13,7 +13,7 @@ public class Order : BaseEntity
     public Money TotalAmount { get; set; } = Money.Zero();
     public Money ShippingFee { get; set; } = Money.Zero();
     public string ShippingAddress { get; set; } = string.Empty;
-    
+
     public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.CashOnDelivery;
     public string? PaymentReference { get; set; }
     public bool IsPaid { get; set; } = false;
@@ -33,7 +33,7 @@ public class Order : BaseEntity
     public void AddItem(OrderItem item)
     {
         if (item is null) throw new ArgumentNullException(nameof(item));
-        
+
         _items.Add(item);
         TotalAmount = TotalAmount + (item.UnitPrice * item.Quantity);
     }

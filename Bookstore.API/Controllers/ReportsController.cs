@@ -1,5 +1,7 @@
+using Bookstore.Application.Features.Reports.Queries;
+using Bookstore.Application.Common;
 using Bookstore.Application.DTOs;
-using Bookstore.Application.Services;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,12 +16,12 @@ namespace Bookstore.API.Controllers;
 [Authorize(Roles = "Admin")]
 public class ReportsController : ControllerBase
 {
-    private readonly IReportService _reportService;
+    private readonly IMediator _mediator;
     private readonly ILogger<ReportsController> _logger;
 
-    public ReportsController(IReportService reportService, ILogger<ReportsController> logger)
+    public ReportsController(IMediator mediator, ILogger<ReportsController> logger)
     {
-        _reportService = reportService;
+        _mediator = mediator;
         _logger = logger;
     }
 
@@ -29,11 +31,12 @@ public class ReportsController : ControllerBase
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Dashboard report data</returns>
     [HttpGet("dashboard")]
+    [ProducesResponseType(typeof(ApiResponse<DashboardReportDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetDashboardReport(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Generating dashboard report");
-        var response = await _reportService.GetDashboardReportAsync(cancellationToken);
-        return StatusCode(response.StatusCode ?? 400, response);
+        _logger.LogInformation("Generating dashboard report via MediatR");
+        var response = await _mediator.Send(new GetDashboardReportQuery(), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 
     /// <summary>
@@ -42,11 +45,12 @@ public class ReportsController : ControllerBase
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Inventory report data</returns>
     [HttpGet("inventory")]
+    [ProducesResponseType(typeof(ApiResponse<InventoryReportDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetInventoryReport(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Generating inventory report");
-        var response = await _reportService.GetInventoryReportAsync(cancellationToken);
-        return StatusCode(response.StatusCode ?? 400, response);
+        _logger.LogInformation("Generating inventory report via MediatR");
+        var response = await _mediator.Send(new GetInventoryReportQuery(), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 
     /// <summary>
@@ -62,8 +66,8 @@ public class ReportsController : ControllerBase
         var start = startDate ?? DateTimeOffset.UtcNow.AddMonths(-1);
         var end = endDate ?? DateTimeOffset.UtcNow;
 
-        _logger.LogInformation("Exporting sales report from {Start} to {End}", start, end);
-        var response = await _reportService.ExportSalesReportAsync(start, end, cancellationToken);
+        _logger.LogInformation("Exporting sales report from {Start} to {End} via MediatR", start, end);
+        var response = await _mediator.Send(new ExportSalesReportQuery(start, end), cancellationToken);
 
         if (!response.Success || response.Data == null)
         {
@@ -79,11 +83,12 @@ public class ReportsController : ControllerBase
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>User engagement report data</returns>
     [HttpGet("user-engagement")]
+    [ProducesResponseType(typeof(ApiResponse<UserEngagementReportDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetUserEngagementReport(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Generating user engagement report");
-        var response = await _reportService.GetUserEngagementReportAsync(cancellationToken);
-        return StatusCode(response.StatusCode ?? 400, response);
+        _logger.LogInformation("Generating user engagement report via MediatR");
+        var response = await _mediator.Send(new GetUserEngagementReportQuery(), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 
     /// <summary>
@@ -92,10 +97,11 @@ public class ReportsController : ControllerBase
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Review analytics report data</returns>
     [HttpGet("reviews")]
+    [ProducesResponseType(typeof(ApiResponse<ReviewAnalyticsReportDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetReviewAnalyticsReport(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Generating review analytics report");
-        var response = await _reportService.GetReviewAnalyticsReportAsync(cancellationToken);
-        return StatusCode(response.StatusCode ?? 400, response);
+        _logger.LogInformation("Generating review analytics report via MediatR");
+        var response = await _mediator.Send(new GetReviewAnalyticsReportQuery(), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 }

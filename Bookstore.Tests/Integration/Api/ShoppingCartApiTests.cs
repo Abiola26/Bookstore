@@ -26,7 +26,7 @@ public class ShoppingCartApiTests : IClassFixture<CustomWebApplicationFactory<Pr
     {
         using var scope = _factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<BookStoreDbContext>();
-        var authService = scope.ServiceProvider.GetRequiredService<Application.Services.IAuthenticationService>();
+        var jwtProvider = scope.ServiceProvider.GetRequiredService<Bookstore.Application.Services.IJwtProvider>();
 
         var email = $"cart_test_{Guid.NewGuid()}@example.com";
         var user = new User("Cart User", email, "hashed_password", Bookstore.Domain.Enum.UserRole.User)
@@ -36,7 +36,7 @@ public class ShoppingCartApiTests : IClassFixture<CustomWebApplicationFactory<Pr
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        var token = authService.GenerateJwtToken(user.Id, user.Email, user.FullName, user.Role.ToString());
+        var token = jwtProvider.GenerateJwtToken(user.Id, user.Email, user.FullName, user.Role.ToString());
         return (user.Id, token);
     }
 
@@ -66,9 +66,10 @@ public class ShoppingCartApiTests : IClassFixture<CustomWebApplicationFactory<Pr
 
         // Assert
         response.EnsureSuccessStatusCode();
-        var result = await response.Content.ReadFromJsonAsync<ShoppingCartResponseDto>();
+        var result = await response.Content.ReadFromJsonAsync<ApiResponse<ShoppingCartResponseDto>>();
         result.Should().NotBeNull();
-        result!.Items.Should().ContainSingle(i => i.BookId == bookId);
+        result!.Success.Should().BeTrue();
+        result!.Data!.Items.Should().ContainSingle(i => i.BookId == bookId);
     }
 
     [Fact]

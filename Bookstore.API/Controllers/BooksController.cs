@@ -1,6 +1,9 @@
 using Bookstore.Application.DTOs;
-using Bookstore.Application.Services;
+using Bookstore.Application.Features.Books.Queries;
+using Bookstore.Application.Features.Books.Commands;
 using Bookstore.Application.Common;
+using Bookstore.Application.Services;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,13 +17,13 @@ namespace Bookstore.API.Controllers;
 [Produces("application/json")]
 public class BooksController : ControllerBase
 {
-    private readonly IBookService _bookService;
+    private readonly IMediator _mediator;
     private readonly ILogger<BooksController> _logger;
     private readonly IFileStorageService _fileStorage;
 
-    public BooksController(IBookService bookService, ILogger<BooksController> logger, IFileStorageService fileStorage)
+    public BooksController(IMediator mediator, ILogger<BooksController> logger, IFileStorageService fileStorage)
     {
-        _bookService = bookService;
+        _mediator = mediator;
         _logger = logger;
         _fileStorage = fileStorage;
     }
@@ -41,8 +44,8 @@ public class BooksController : ControllerBase
     public async Task<IActionResult> GetBooks([FromQuery] int pageNumber = ApplicationConstants.Pagination.DefaultPageNumber, [FromQuery] int pageSize = ApplicationConstants.Pagination.DefaultPageSize, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Get books page {PageNumber} with size {PageSize}", pageNumber, pageSize);
-        var response = await _bookService.GetBooksPagedAsync(pageNumber, pageSize, cancellationToken);
-        return StatusCode(response.StatusCode ?? 400, response);
+        var response = await _mediator.Send(new GetBooksPagedQuery(pageNumber, pageSize), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 
     /// <summary>
@@ -60,8 +63,8 @@ public class BooksController : ControllerBase
     public async Task<IActionResult> GetBookById(Guid id, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Get book {BookId}", id);
-        var response = await _bookService.GetBookByIdAsync(id, cancellationToken);
-        return StatusCode(response.StatusCode ?? 400, response);
+        var response = await _mediator.Send(new GetBookByIdQuery(id), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 
     /// <summary>
@@ -85,8 +88,8 @@ public class BooksController : ControllerBase
             return BadRequest(Bookstore.Application.Common.ApiResponse.ErrorResponse($"Search title is too long (max {ApplicationConstants.Validation.MaxSearchLength} characters)", null, 400));
 
         _logger.LogInformation("Search books by title: {SearchQuery}", title);
-        var response = await _bookService.SearchByTitleAsync(title, cancellationToken);
-        return StatusCode(response.StatusCode ?? 400, response);
+        var response = await _mediator.Send(new SearchBooksQuery(title), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 
     /// <summary>
@@ -108,8 +111,8 @@ public class BooksController : ControllerBase
     public async Task<IActionResult> GetByCategory(Guid categoryId, [FromQuery] int pageNumber = ApplicationConstants.Pagination.DefaultPageNumber, [FromQuery] int pageSize = ApplicationConstants.Pagination.DefaultPageSize, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Get books for category {CategoryId}", categoryId);
-        var response = await _bookService.GetBooksByCategoryAsync(categoryId, pageNumber, pageSize, cancellationToken);
-        return StatusCode(response.StatusCode ?? 400, response);
+        var response = await _mediator.Send(new GetBooksByCategoryQuery(categoryId, pageNumber, pageSize), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 
     /// <summary>
@@ -133,8 +136,8 @@ public class BooksController : ControllerBase
     public async Task<IActionResult> CreateBook([FromBody] BookCreateDto dto, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Create book with ISBN {ISBN}", dto.ISBN);
-        var response = await _bookService.CreateBookAsync(dto, cancellationToken);
-        return StatusCode(response.StatusCode ?? 400, response);
+        var response = await _mediator.Send(new CreateBookCommand(dto), cancellationToken);
+        return StatusCode(response.StatusCode ?? 201, response);
     }
 
     /// <summary>
@@ -151,8 +154,8 @@ public class BooksController : ControllerBase
             return BadRequest(Bookstore.Application.Common.ApiResponse.ErrorResponse("Only CSV files are allowed", null, 400));
 
         using var stream = file.OpenReadStream();
-        var response = await _bookService.BulkUploadBooksAsync(stream, cancellationToken);
-        return StatusCode(response.StatusCode ?? 400, response);
+        var response = await _mediator.Send(new BulkUploadBooksCommand(stream), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 
     /// <summary>
@@ -160,9 +163,9 @@ public class BooksController : ControllerBase
     /// </summary>
     [HttpGet("bulk-template")]
     [Authorize(Roles = "Admin")]
-    public IActionResult DownloadTemplate()
+    public async Task<IActionResult> DownloadTemplate()
     {
-        var bytes = _bookService.GetBulkUploadTemplate();
+        var bytes = await _mediator.Send(new GetBulkUploadTemplateQuery());
         return File(bytes, "text/csv", "books_bulk_upload_template.csv");
     }
 
@@ -192,14 +195,14 @@ public class BooksController : ControllerBase
         var thumbUrl = uploadResult.ThumbnailUrl != null ? baseUrl.TrimEnd('/') + uploadResult.ThumbnailUrl : null;
 
         var updateDto = new BookUpdateDto { CoverImageUrl = fullUrl };
-        var updateResult = await _bookService.UpdateBookAsync(id, updateDto, cancellationToken);
+        var updateResult = await _mediator.Send(new UpdateBookCommand(id, updateDto), cancellationToken);
         if (!updateResult.Success)
             return StatusCode(updateResult.StatusCode ?? 500, updateResult);
 
-        return Ok(Bookstore.Application.Common.ApiResponse<object>.SuccessResponse(new 
-        { 
-            Url = fullUrl, 
-            ThumbnailUrl = thumbUrl 
+        return Ok(Bookstore.Application.Common.ApiResponse<object>.SuccessResponse(new
+        {
+            Url = fullUrl,
+            ThumbnailUrl = thumbUrl
         }, "Cover image uploaded successfully", 200));
     }
 
@@ -225,8 +228,8 @@ public class BooksController : ControllerBase
     public async Task<IActionResult> UpdateBook(Guid id, [FromBody] BookUpdateDto dto, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Update book {BookId}", id);
-        var response = await _bookService.UpdateBookAsync(id, dto, cancellationToken);
-        return StatusCode(response.StatusCode ?? 400, response);
+        var response = await _mediator.Send(new UpdateBookCommand(id, dto), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 
     /// <summary>
@@ -248,7 +251,7 @@ public class BooksController : ControllerBase
     public async Task<IActionResult> DeleteBook(Guid id, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Delete book {BookId}", id);
-        var response = await _bookService.DeleteBookAsync(id, cancellationToken);
-        return StatusCode(response.StatusCode ?? 400, response);
+        var response = await _mediator.Send(new DeleteBookCommand(id), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 }

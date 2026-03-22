@@ -1,6 +1,8 @@
 using Bookstore.Application.DTOs;
-using Bookstore.Application.Services;
+using Bookstore.Application.Features.Categories.Queries;
+using Bookstore.Application.Features.Categories.Commands;
 using Bookstore.Application.Common;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,12 +16,12 @@ namespace Bookstore.API.Controllers;
 [Produces("application/json")]
 public class CategoriesController : ControllerBase
 {
-    private readonly ICategoryService _categoryService;
+    private readonly IMediator _mediator;
     private readonly ILogger<CategoriesController> _logger;
 
-    public CategoriesController(ICategoryService categoryService, ILogger<CategoriesController> logger)
+    public CategoriesController(IMediator mediator, ILogger<CategoriesController> logger)
     {
-        _categoryService = categoryService;
+        _mediator = mediator;
         _logger = logger;
     }
 
@@ -35,8 +37,8 @@ public class CategoriesController : ControllerBase
     public async Task<IActionResult> GetCategories(CancellationToken cancellationToken)
     {
         _logger.LogInformation("Get all categories");
-        var response = await _categoryService.GetAllCategoriesAsync(cancellationToken);
-        return StatusCode(response.StatusCode ?? 400, response);
+        var response = await _mediator.Send(new GetAllCategoriesQuery(), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 
     /// <summary>
@@ -54,8 +56,8 @@ public class CategoriesController : ControllerBase
     public async Task<IActionResult> GetCategoryById(Guid id, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Get category {CategoryId}", id);
-        var response = await _categoryService.GetCategoryByIdAsync(id, cancellationToken);
-        return StatusCode(response.StatusCode ?? 400, response);
+        var response = await _mediator.Send(new GetCategoryByIdQuery(id), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 
     /// <summary>
@@ -79,8 +81,8 @@ public class CategoriesController : ControllerBase
     public async Task<IActionResult> CreateCategory([FromBody] CategoryCreateDto dto, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Create category: {CategoryName}", dto.Name);
-        var response = await _categoryService.CreateCategoryAsync(dto, cancellationToken);
-        return StatusCode(response.StatusCode ?? 400, response);
+        var response = await _mediator.Send(new CreateCategoryCommand(dto), cancellationToken);
+        return StatusCode(response.StatusCode ?? 201, response);
     }
 
     /// <summary>
@@ -107,8 +109,8 @@ public class CategoriesController : ControllerBase
     public async Task<IActionResult> UpdateCategory(Guid id, [FromBody] CategoryUpdateDto dto, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Update category {CategoryId}", id);
-        var response = await _categoryService.UpdateCategoryAsync(id, dto, cancellationToken);
-        return StatusCode(response.StatusCode ?? 400, response);
+        var response = await _mediator.Send(new UpdateCategoryCommand(id, dto), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 
     /// <summary>
@@ -132,7 +134,7 @@ public class CategoriesController : ControllerBase
     public async Task<IActionResult> DeleteCategory(Guid id, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Delete category {CategoryId}", id);
-        var response = await _categoryService.DeleteCategoryAsync(id, cancellationToken);
-        return StatusCode(response.StatusCode ?? 400, response);
+        var response = await _mediator.Send(new DeleteCategoryCommand(id), cancellationToken);
+        return StatusCode(response.StatusCode ?? 200, response);
     }
 }

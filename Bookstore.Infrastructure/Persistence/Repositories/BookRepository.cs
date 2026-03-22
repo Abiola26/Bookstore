@@ -39,14 +39,15 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
             .Where(b => b.Title.ToLower().Contains(searchTerm) || b.Author.ToLower().Contains(searchTerm));
 
         ISBN? searchIsbn = null;
-        try 
-        { 
-            searchIsbn = new ISBN(title); 
+        try
+        {
+            searchIsbn = new ISBN(title);
             query = _dbSet
-                .Where(b => b.Title.ToLower().Contains(searchTerm) || 
+                .Where(b => b.Title.ToLower().Contains(searchTerm) ||
                             b.Author.ToLower().Contains(searchTerm) ||
                             b.ISBN == searchIsbn);
-        } catch { }
+        }
+        catch { }
 
         return await query
             .Include(b => b.Category)
@@ -71,7 +72,7 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
     public async Task<bool> ISBNExistsAsync(string isbn, Guid? excludeBookId = null, CancellationToken cancellationToken = default)
     {
         var isbnObj = new ISBN(isbn);
-        
+
         var query = _context.Books
             .AsNoTracking();
 
@@ -97,5 +98,16 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
     public async Task<int> GetCategoryBookCountAsync(Guid categoryId, CancellationToken cancellationToken = default)
     {
         return await _dbSet.CountAsync(b => b.CategoryId == categoryId, cancellationToken);
+    }
+
+    public async Task DeleteWithRelatedAsync(Book book, CancellationToken cancellationToken = default)
+    {
+        // Proactively delete related records to handle foreign key constraints
+        await _context.ShoppingCartItems.Where(x => x.BookId == book.Id).ExecuteDeleteAsync(cancellationToken);
+        await _context.WishlistItems.Where(x => x.BookId == book.Id).ExecuteDeleteAsync(cancellationToken);
+        await _context.Reviews.Where(x => x.BookId == book.Id).ExecuteDeleteAsync(cancellationToken);
+        await _context.OrderItems.Where(x => x.BookId == book.Id).ExecuteDeleteAsync(cancellationToken);
+
+        Delete(book);
     }
 }

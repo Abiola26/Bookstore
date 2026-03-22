@@ -1,6 +1,5 @@
 using Bookstore.Domain.ValueObjects;
 using FluentAssertions;
-using Xunit;
 
 namespace Bookstore.Tests.Unit.Domain.ValueObjects;
 

@@ -41,7 +41,7 @@ public class ReportRepository : IReportRepository
     public async Task<ICollection<MonthlySalesDto>> GetMonthlySalesAsync(int months, CancellationToken cancellationToken = default)
     {
         var startDate = DateTimeOffset.UtcNow.AddMonths(-months);
-        
+
         var sales = await _context.Orders
             .Where(o => o.CreatedAt >= startDate && (o.Status == OrderStatus.Completed || o.IsPaid))
             .ToListAsync(cancellationToken);

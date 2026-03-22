@@ -1,5 +1,9 @@
-using Bookstore.Application.Services;
+using Bookstore.Application.Features.Users.Queries;
+using Bookstore.Application.Features.Users.Commands;
 using Bookstore.Domain.Enum;
+using Bookstore.Application.Common;
+using Bookstore.Application.DTOs;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,12 +18,12 @@ namespace Bookstore.API.Controllers;
 [Produces("application/json")]
 public class UsersController : ControllerBase
 {
-    private readonly IUserService _userService;
+    private readonly IMediator _mediator;
     private readonly ILogger<UsersController> _logger;
 
-    public UsersController(IUserService userService, ILogger<UsersController> logger)
+    public UsersController(IMediator mediator, ILogger<UsersController> logger)
     {
-        _userService = userService;
+        _mediator = mediator;
         _logger = logger;
     }
 
@@ -29,10 +33,10 @@ public class UsersController : ControllerBase
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>List of all users</returns>
     [HttpGet]
-    [ProducesResponseType(typeof(Application.Common.ApiResponse<ICollection<Application.DTOs.UserResponseDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<ICollection<UserResponseDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAllUsers(CancellationToken cancellationToken)
     {
-        var response = await _userService.GetAllUsersAsync(cancellationToken);
+        var response = await _mediator.Send(new GetAllUsersQuery(), cancellationToken);
         return StatusCode(response.StatusCode ?? 200, response);
     }
 
@@ -43,11 +47,11 @@ public class UsersController : ControllerBase
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>User details</returns>
     [HttpGet("{id}")]
-    [ProducesResponseType(typeof(Application.Common.ApiResponse<Application.DTOs.UserResponseDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(Application.Common.ApiResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<UserResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetUserById(Guid id, CancellationToken cancellationToken)
     {
-        var response = await _userService.GetUserByIdAsync(id, cancellationToken);
+        var response = await _mediator.Send(new GetUserByIdQuery(id), cancellationToken);
         return StatusCode(response.StatusCode ?? 200, response);
     }
 
@@ -55,17 +59,17 @@ public class UsersController : ControllerBase
     /// Update a user's role (Promote to Admin or Demote to User)
     /// </summary>
     /// <param name="id">User ID</param>
-    /// <param name="role">New role</param>
+    /// <param name="dto">New role</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Updated user details</returns>
     public class UserRoleUpdateDto { public UserRole Role { get; set; } }
 
     [HttpPatch("{id}/role")]
-    [ProducesResponseType(typeof(Application.Common.ApiResponse<Application.DTOs.UserResponseDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(Application.Common.ApiResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<UserResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateUserRole(Guid id, [FromBody] UserRoleUpdateDto dto, CancellationToken cancellationToken)
     {
-        var response = await _userService.UpdateUserRoleAsync(id, dto.Role, cancellationToken);
+        var response = await _mediator.Send(new UpdateUserRoleCommand(id, dto.Role), cancellationToken);
         return StatusCode(response.StatusCode ?? 200, response);
     }
 
@@ -76,11 +80,11 @@ public class UsersController : ControllerBase
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Success message</returns>
     [HttpDelete("{id}")]
-    [ProducesResponseType(typeof(Application.Common.ApiResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(Application.Common.ApiResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteUser(Guid id, CancellationToken cancellationToken)
     {
-        var response = await _userService.DeleteUserAsync(id, cancellationToken);
+        var response = await _mediator.Send(new DeleteUserCommand(id), cancellationToken);
         return StatusCode(response.StatusCode ?? 200, response);
     }
 }

@@ -3,13 +3,14 @@ using Bookstore.Application.Settings;
 using Bookstore.Infrastructure.Persistence;
 using Bookstore.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.OpenApi.Models;
 using System.Reflection;
 using System.Threading.RateLimiting;
+using FluentValidation;
+using Bookstore.API.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,14 +20,22 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddResponseCaching();
 
+// Add architectural services
+builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+builder.Services.AddMediatR(cfg => {
+    cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly());
+    cfg.RegisterServicesFromAssembly(typeof(Bookstore.Application.Mappings.MappingProfile).Assembly);
+});
+builder.Services.AddValidatorsFromAssembly(typeof(Bookstore.Application.Validators.BookCreateDtoValidator).Assembly);
+
 // Swagger Documentation
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo 
-    { 
-        Title = "Bookstore API", 
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Bookstore API",
         Version = "v1",
-        Description = "A clean architecture Bookstore API built with .NET 10" 
+        Description = "A clean architecture Bookstore API built with .NET 10"
     });
 
     // XML Documentation
@@ -69,7 +78,7 @@ builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Emai
 builder.Services.Configure<PaystackSettings>(builder.Configuration.GetSection("Paystack"));
 
 // Register Infrastructure (this includes persistence, repos, and services)
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 var isTesting = builder.Environment.IsEnvironment("Testing");
 builder.Services.AddInfrastructure(connectionString, isTesting);
@@ -169,6 +178,8 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+
 app.UseCors("DefaultPolicy");
 
 if (app.Environment.IsDevelopment())
@@ -180,7 +191,7 @@ if (app.Environment.IsDevelopment())
         c.RoutePrefix = "swagger";
     });
 }
-else 
+else
 {
     app.UseHttpsRedirection();
 }

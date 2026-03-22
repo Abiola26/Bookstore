@@ -27,7 +27,7 @@ public class OrderApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
     {
         using var scope = _factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<BookStoreDbContext>();
-        var authService = scope.ServiceProvider.GetRequiredService<Application.Services.IAuthenticationService>();
+        var jwtProvider = scope.ServiceProvider.GetRequiredService<Bookstore.Application.Services.IJwtProvider>();
 
         var email = $"order_test_{Guid.NewGuid()}@example.com";
         var user = new User("Order User", email, "hashed_password", role)
@@ -37,7 +37,7 @@ public class OrderApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        var token = authService.GenerateJwtToken(user.Id, user.Email, user.FullName, user.Role.ToString());
+        var token = jwtProvider.GenerateJwtToken(user.Id, user.Email, user.FullName, user.Role.ToString());
         return (user.Id, token);
     }
 
@@ -62,6 +62,8 @@ public class OrderApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
 
         var dto = new OrderCreateDto
         {
+            ShippingAddress = "123 Test St, Test City",
+            PaymentMethod = "CashOnDelivery",
             Items = new List<OrderItemCreateDto>
             {
                 new OrderItemCreateDto { BookId = bookId, Quantity = 2 }
@@ -72,9 +74,13 @@ public class OrderApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
         var response = await _client.PostAsJsonAsync("/api/Orders", dto);
 
         // Assert
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync();
+            throw new Exception($"Order creation failed. Status: {response.StatusCode}. Body: {errorBody}");
+        }
         response.StatusCode.Should().Be(System.Net.HttpStatusCode.Created);
-        
+
         var result = await response.Content.ReadFromJsonAsync<ApiResponse<OrderResponseDto>>();
         result.Should().NotBeNull();
         result!.Success.Should().BeTrue();
