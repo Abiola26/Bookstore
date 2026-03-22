@@ -78,8 +78,54 @@ builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Emai
 builder.Services.Configure<PaystackSettings>(builder.Configuration.GetSection("Paystack"));
 
 // Register Infrastructure (this includes persistence, repos, and services)
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// HANDLE RENDER/HEROKU DATABASE_URL
+var databaseUrl = Environment.GetEnvironmentVariable("INTERNAL_DATABASE_URL") ?? 
+                  Environment.GetEnvironmentVariable("DATABASE_URL");
+
+if (!string.IsNullOrEmpty(databaseUrl) && databaseUrl.Contains("://"))
+{
+    try 
+    {
+        // Handle postgres:// or postgresql://
+        var uriString = databaseUrl.Replace("postgres://", "postgresql://");
+        var databaseUri = new Uri(uriString);
+        var userInfo = databaseUri.UserInfo.Split(':');
+        
+        var npgsqlBuilder = new Npgsql.NpgsqlConnectionStringBuilder
+        {
+            Host = databaseUri.Host,
+            Port = databaseUri.Port > 0 ? databaseUri.Port : 5432,
+            Username = userInfo[0],
+            Password = userInfo.Length > 1 ? userInfo[1] : string.Empty,
+            Database = databaseUri.LocalPath.TrimStart('/'),
+            SslMode = Npgsql.SslMode.Require
+        };
+        connectionString = npgsqlBuilder.ToString();
+        Console.WriteLine($"Successfully parsed connection string from {(Environment.GetEnvironmentVariable("INTERNAL_DATABASE_URL") != null ? "INTERNAL_DATABASE_URL" : "DATABASE_URL")}");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error parsing database environment variable: {ex.Message}");
+    }
+}
+else if (string.IsNullOrEmpty(connectionString) || connectionString.Contains("YOUR_DB_HOST"))
+{
+    Console.WriteLine("WARNING: No valid DATABASE_URL found and DefaultConnection contains placeholders.");
+}
+
+if (string.IsNullOrEmpty(connectionString))
+{
+    throw new InvalidOperationException("Connection string 'DefaultConnection' (or DATABASE_URL) not found.");
+}
+
+// MASKED LOGGING
+var maskedConnString = connectionString.Contains("Password=", StringComparison.OrdinalIgnoreCase) 
+    ? "PostgreSQL connection string (sensitive values masked)" 
+    : connectionString;
+Console.WriteLine($"Using connection string: {maskedConnString}");
+
 var isTesting = builder.Environment.IsEnvironment("Testing");
 builder.Services.AddInfrastructure(connectionString, isTesting);
 
@@ -204,6 +250,14 @@ app.UseAuthorization();
 app.UseRateLimiter();
 
 app.MapControllers();
+
+// Root endpoint for health check and to avoid 404 on Render landing page
+app.MapGet("/", () => Results.Ok(new { 
+    Status = "Healthy", 
+    Message = "Bookstore API is running", 
+    Environment = app.Environment.EnvironmentName,
+    Timestamp = DateTime.UtcNow
+}));
 
 // Database initialization - Use migrations for production (CRITICAL FIX)
 if (!app.Environment.IsEnvironment("Testing"))
