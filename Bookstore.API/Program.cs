@@ -228,16 +228,14 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseCors("DefaultPolicy");
 
-if (app.Environment.IsDevelopment())
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Bookstore API V1");
-        c.RoutePrefix = "swagger";
-    });
-}
-else
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Bookstore API V1");
+    c.RoutePrefix = "swagger";
+});
+
+if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
 }
