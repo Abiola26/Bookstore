@@ -11,6 +11,7 @@ using System.Reflection;
 using System.Threading.RateLimiting;
 using FluentValidation;
 using Bookstore.API.Middleware;
+using System.Linq;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -151,11 +152,26 @@ builder.Services.AddAuthentication(options =>
 });
 
 // CORS Configuration
+var allowedOrigins = new List<string> 
+{ 
+    "http://localhost:3000", 
+    "http://localhost:5173", 
+    "https://localhost:3000",
+    "https://static-cosmos.vercel.app" 
+};
+
+// Allow additional origins via environment variable
+var additionalOrigins = Environment.GetEnvironmentVariable("CORS_ORIGINS");
+if (!string.IsNullOrEmpty(additionalOrigins))
+{
+    allowedOrigins.AddRange(additionalOrigins.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(o => o.Trim()));
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("DefaultPolicy", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:5173", "https://localhost:3000") // Common dev origins
+        policy.WithOrigins(allowedOrigins.ToArray())
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();

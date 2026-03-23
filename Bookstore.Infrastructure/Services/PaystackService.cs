@@ -32,7 +32,7 @@ public class PaystackService : IPaystackService
             {
                 email = dto.Email,
                 amount = (int)(dto.Amount * 100), // Paystack expects amount in kobo/cents
-                callback_url = "http://localhost:3000/checkout/verify",
+                callback_url = _settings.CallbackUrl,
                 metadata = new { order_id = dto.OrderId }
             };
 
